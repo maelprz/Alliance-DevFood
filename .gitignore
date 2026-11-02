@@ -45,3 +45,7 @@ Desktop.ini
 .env.test.local
 .env.production.local
 server/orders.json
+
+
+bin/
+obj/
