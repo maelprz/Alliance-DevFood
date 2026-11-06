@@ -1,29 +1,75 @@
+
 import { useState, useEffect } from "react";
-import menuData from "../data/menuData.json";
 import { MenuContext } from "./MenuContext";
 
-// Loads the menu from the API so admin edits are shared; falls back to the
-// bundled menuData.json (same ids as the API seed) if the server is unreachable.
 export function MenuProvider({ children }) {
-  const [menuItems, setMenuItems] = useState(() => menuData.map((f) => ({ ...f })));
+  const [menuItems, setMenuItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
+    const controller = new AbortController();
     let cancelled = false;
-    fetch("/api/menu")
-      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
-      .then((items) => {
-        if (!cancelled && Array.isArray(items) && items.length > 0) setMenuItems(items);
+
+    setLoading(true);
+    setError(null);
+
+    const timeout = setTimeout(() => {
+      controller.abort();
+    }, 15000);
+
+    fetch("/api/menu", {
+      signal: controller.signal,
+    })
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`Server error: HTTP ${response.status}`);
+        }
+
+        return response.json();
       })
-      .catch(() => {
-        // Keep the bundled menu.
+      .then((items) => {
+        if (!Array.isArray(items)) {
+          throw new Error("Invalid menu response.");
+        }
+
+        if (!cancelled) {
+          setMenuItems(items);
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          if (err.name === "AbortError") {
+            setError("Request timed out. Please check your connection.");
+          } else {
+            setError(err.message || "Unable to load menu.");
+          }
+        }
+      })
+      .finally(() => {
+        clearTimeout(timeout);
+
+        if (!cancelled) {
+          setLoading(false);
+        }
       });
+
     return () => {
       cancelled = true;
+      clearTimeout(timeout);
+      controller.abort();
     };
-  }, []);
+  }, [retryCount]);
+
+  const retry = () => {
+    setRetryCount((prev) => prev + 1);
+  };
 
   return (
-    <MenuContext.Provider value={{ menuItems, setMenuItems }}>
+    <MenuContext.Provider
+      value={{ menuItems, setMenuItems, loading, error, retry }}
+    >
       {children}
     </MenuContext.Provider>
   );
