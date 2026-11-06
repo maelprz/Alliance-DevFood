@@ -3,15 +3,13 @@ import { useNav } from "../context/useNav";
 import { useApp } from "../context/useApp";
 import { saveAdminToken } from "../services/authService";
 
-// Admin-only login page — separate from customer login
-// Admin entry point: navigate to 'admin-login' view
-// Exports only AdminLogin component — React Compiler rule
+// Login page for admins
 export default function AdminLogin() {
   const { navigate } = useNav();
   const { setAdminUser } = useApp();
   const [formData, setFormData] = useState({ email: "", password: "" });
 
-  // Lock page scroll on the auth screen — there's nothing to scroll to.
+  // Prevent scrolling on the login page.
   useEffect(() => {
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -57,7 +55,7 @@ export default function AdminLogin() {
 
   return (
     <>
-      {/* Pinned dark background — fills viewport always, never scrolls away. */}
+      {/* Page background */}
       <div
         aria-hidden="true"
         style={{
@@ -84,7 +82,7 @@ export default function AdminLogin() {
       <div style={{ width: "100%", maxWidth: 440 }}>
         {/* Header */}
         <div style={{ textAlign: "center", marginBottom: 32 }}>
-          {/* Shield icon — inline SVG so it renders identically across OS. */}
+          {/* Admin icon */}
           <div
             style={{
               width: 64,
@@ -127,7 +125,7 @@ export default function AdminLogin() {
             overflow: "hidden",
           }}
         >
-          {/* Admin gradient strip — cooler tones to differentiate from customer login */}
+          {/* Card accent */}
           <div
             style={{
               height: 6,

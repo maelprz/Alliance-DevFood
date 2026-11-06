@@ -1,4 +1,5 @@
-import { useMemo } from "react";
+import { useEffect, useState } from "react";
+import { authHeaders } from "../services/authService";
 import {
   BarChart,
   Bar,
@@ -11,57 +12,33 @@ import {
   CartesianGrid,
 } from "recharts";
 
-export default function Statistics({ orders = [], contextMenuItems = [] }) {
-  // SUMMARY CARDS
-  const totalOrders = orders.length;
+export default function Statistics() {
+  const [statistics, setStatistics] = useState(null);
+  const [error, setError] = useState("");
 
-  const totalRevenue = orders.reduce(
-    (sum, order) => sum + (order.total_amount || 0),
-    0,
-  );
+  useEffect(() => {
+    async function loadStatistics() {
+      try {
+        const response = await fetch("/api/admin/statistics", {
+          headers: authHeaders("admin"),
+        });
+        if (response.ok === false) {
+          setError("Could not load statistics. Please log in again and try again.");
+          return;
+        }
+        const data = await response.json();
+        setStatistics(data);
+      } catch {
+        setError("Could not connect to the server.");
+      }
+    }
+    loadStatistics();
+  }, []);
 
-  const deliveredOrders = orders.filter(
-    (o) => o.status === "Delivered",
-  ).length;
+  if (error) return <p role="alert">{error}</p>;
+  if (statistics === null) return <p>Loading statistics...</p>;
 
-  const pendingOrders = orders.filter(
-    (o) => o.status === "Pending",
-  ).length;
-
-  // REVENUE TRACKING DATA
-  const revenueData = useMemo(() => {
-    const map = {};
-
-    orders.forEach((order) => {
-      const date = new Date(order.created_at).toLocaleDateString();
-
-      map[date] = (map[date] || 0) + (order.total_amount || 0);
-    });
-
-    return Object.keys(map).map((key) => ({
-      date: key,
-      revenue: map[key],
-    }));
-  }, [orders]);
-
-  // FOOD DATA
-  const foodData = useMemo(() => {
-    const map = {};
-
-    orders.forEach((order) => {
-      (order.items || []).forEach((item) => {
-        const name = item.name || "Food";
-        map[name] = (map[name] || 0) + item.quantity;
-      });
-    });
-
-    return Object.keys(map)
-      .map((key) => ({
-        name: key,
-        quantity: map[key],
-      }))
-      .sort((a, b) => b.quantity - a.quantity);
-  }, [orders]);
+  const { totalOrders, totalRevenue, deliveredOrders, pendingOrders, revenueData, foodData } = statistics;
 
   return (
     <div>
@@ -69,7 +46,7 @@ export default function Statistics({ orders = [], contextMenuItems = [] }) {
         Statistics Dashboard
       </h1>
 
-      {/* SUMMARY CARDS */}
+      {/* Order totals */}
       <div
         style={{
           display: "grid",
@@ -78,7 +55,7 @@ export default function Statistics({ orders = [], contextMenuItems = [] }) {
           marginBottom: 40,
         }}
       >
-        {/* TOTAL ORDERS */}
+        {/* Total orders */}
         <div
           style={{
             background: "#fff",
@@ -108,7 +85,7 @@ export default function Statistics({ orders = [], contextMenuItems = [] }) {
           </p>
         </div>
 
-        {/* TOTAL REVENUE */}
+        {/* Total revenue */}
         <div
           style={{
             background: "#fff",
@@ -138,7 +115,7 @@ export default function Statistics({ orders = [], contextMenuItems = [] }) {
           </p>
         </div>
 
-        {/* DELIVERED */}
+        {/* Delivered orders */}
         <div
           style={{
             background: "#fff",
@@ -168,7 +145,7 @@ export default function Statistics({ orders = [], contextMenuItems = [] }) {
           </p>
         </div>
 
-        {/* PENDING */}
+        {/* Pending orders */}
         <div
           style={{
             background: "#fff",
@@ -199,7 +176,7 @@ export default function Statistics({ orders = [], contextMenuItems = [] }) {
         </div>
       </div>
 
-      {/* REVENUE TRACKING */}
+      {/* Revenue */}
       <div
         style={{
           width: "100%",
@@ -230,7 +207,7 @@ export default function Statistics({ orders = [], contextMenuItems = [] }) {
         </ResponsiveContainer>
       </div>
 
-      {/* MOST ORDERED FOOD ITEMS */}
+      {/* Most ordered items */}
       <div
         style={{
           width: "100%",

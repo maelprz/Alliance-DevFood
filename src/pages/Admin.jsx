@@ -17,17 +17,7 @@ const STATUS_COLORS = {
   Cancelled: "#dc2626",
 };
 
-const CATEGORY_ORDER = [
-  "Burger",
-  "Sandwich",
-  "Chicken",
-  "Pizzas",
-  "Spaghetti",
-  "Rice Meals",
-  "Snacks",
-  "Dessert",
-  "Drinks",
-];
+
 
 export default function Admin() {
   const { navigate } = useNav();
@@ -37,11 +27,23 @@ export default function Admin() {
   const [activeView, setActiveView] = useState("orders");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
-  const { orders, setOrders, orderItems } = useOrder();
+  const [orderPage, setOrderPage] = useState(1);
+  const { orderItems } = useOrder();
+  const [orders, setOrders] = useState([]);
+  const [totalOrders, setTotalOrders] = useState(0);
+  const [totalOrderPages, setTotalOrderPages] = useState(1);
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [itemToDelete, setItemToDelete] = useState(null);
+  const [menuNotice, setMenuNotice] = useState(null);
+  const [menuSaving, setMenuSaving] = useState(false);
+  useEffect(() => {
+    if (menuNotice === null) return;
+    if (menuNotice.text !== "Item availability updated.") return;
+    const timer = setTimeout(() => setMenuNotice(null), 3000);
+    return () => clearTimeout(timer);
+  }, [menuNotice]);
   const [formData, setFormData] = useState({
     name: "",
     price: "",
@@ -50,31 +52,80 @@ export default function Admin() {
   });
   const [image, setImage] = useState(null);
   const [preview, setPreview] = useState(null);
-  const [selectedOrders, setSelectedOrders] = useState([]);
+  const [orderError, setOrderError] = useState("");
 
   const [selectedCategory, setSelectedCategory] = useState("All");
+  const [filteredMenuItems, setFilteredMenuItems] = useState([]);
+  const [menuPage, setMenuPage] = useState(1);
+  const [totalMenuPages, setTotalMenuPages] = useState(1);
 
-  // Map of user_id → current name. Lets the orders table show the up-to-date
-  // customer name instead of the one snapshotted at order time.
+  useEffect(() => {
+    let active = true;
+    async function loadAdminMenu() {
+      try {
+        const params = new URLSearchParams({ category: selectedCategory, page: String(menuPage) });
+        const response = await fetch("/api/menu/admin?" + params, {
+          headers: authHeaders("admin"),
+        });
+        if (response.ok === false) {
+          if (active) setMenuNotice({ type: "error", text: "Could not load the admin menu." });
+          return;
+        }
+        const data = await response.json();
+        if (Array.isArray(data.items) === false) {
+          if (active) setMenuNotice({ type: "error", text: "Please restart the backend and refresh this page." });
+          return;
+        }
+        if (active) {
+          setFilteredMenuItems(data.items);
+          setTotalMenuPages(data.totalPages);
+          if (data.page !== menuPage) setMenuPage(data.page);
+        }
+      } catch {
+        if (active) setMenuNotice({ type: "error", text: "Could not connect to the server." });
+      }
+    }
+    loadAdminMenu();
+    return () => { active = false; };
+  }, [selectedCategory, menuPage, contextMenuItems]);
+
+  // Show current customer names in the order list.
   const [customerNames, setCustomerNames] = useState({});
 
-  useEffect (() => {
-    const fetchOrders = async () => {
+  useEffect(() => {
+    let active = true;
+    async function fetchOrders() {
       try {
-        const res = await fetch("/api/orders");
-        const data = await res.json();
-
-        setOrders(data);
-      } catch (err) {
-        console.error("Error updating orders: ", err);
+        const params = new URLSearchParams({
+          page: String(orderPage),
+          search,
+          status: statusFilter,
+        });
+        const response = await fetch(`/api/admin/orders?${params}`, {
+          headers: authHeaders("admin"),
+        });
+        if (response.ok === false) {
+          if (active) setOrderError("Could not load orders. Please check your admin login.");
+          return;
+        }
+        const data = await response.json();
+        if (active) {
+          setOrders(data.orders);
+          setTotalOrders(data.total);
+          setTotalOrderPages(data.totalPages);
+          if (data.page !== orderPage) setOrderPage(data.page);
+        }
+      } catch {
+        if (active) setOrderError("Could not load orders. Please check the server.");
       }
-      };
-      fetchOrders();
-
-      const interval = setInterval(fetchOrders, 1000);
-
-      return () => clearInterval(interval);
-  }, [setOrders]);
+    }
+    fetchOrders();
+    const interval = setInterval(fetchOrders, 5000);
+    return () => {
+      active = false;
+      clearInterval(interval);
+    };
+  }, [orderPage, search, statusFilter]);
 
   useEffect(() => {
     const fetchUsers = async () => {
@@ -94,84 +145,88 @@ export default function Admin() {
     return () => clearInterval(interval);
   }, []);
 
-  const handleStatusChange = async (order_id, newStatus) => {
+  const handleStatusChange = async (orderId, newStatus) => {
+    setOrderError("");
     try {
-      const res = await fetch(`/api/orders/${order_id}`, {
+      const res = await fetch(`/api/orders/${orderId}`, {
         method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ status: newStatus })
-      }
-    );
-      const updatedOrder = await res.json();
-
-      setOrders((prev) =>
-        prev.map((o) =>
-          o.order_id === order_id ? updatedOrder : o
-        )
-      );
-    } catch (err) {
-      console.error("Error updating order status:", err);
-    }
-
-  };
-
-  const handleDeleteOrders = async () => {
-    try {
-      for (const orderId of selectedOrders) {
-        await fetch(`/api/orders/${orderId}`, {
-          method: "DELETE",
-        });
-      }
-
-      setOrders((prev) => prev.filter((order) => !selectedOrders.includes(order.order_id)));
-
-      setSelectedOrders([]);
-    } catch (err) {
-      alert("Failed to delete orders. Please try again.");
-    }
-  };
-
-  const handleToggleStock = async (food_id) => {
-    const item = contextMenuItems.find((i) => i.food_id === food_id);
-
-    if (!item) return;
-
-    const updatedItem = {
-      ...item,
-      availability: !item.availability,
-    };
-    
-    try {
-      const res = await fetch(`/api/menu/${food_id}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body:  JSON.stringify(updatedItem),});
-
-        const savedItem = await res.json();
-
-        setContextMenuItems((prev) => prev.map((i) => i.food_id === food_id ? savedItem : i));
-      } catch (err) {
-        alert("Failed to update stock status. Please try again.");
-        console.error(err);
-
-    }
-
-
-  };
-
-  const handleDeleteItem = async (food_id) => {
-    try {
-      await fetch(`/api/menu/${food_id}`, {
-        method: "DELETE",
+        headers: { "Content-Type": "application/json", ...authHeaders("admin") },
+        body: JSON.stringify({ status: newStatus }),
       });
-      setContextMenuItems((prev) => prev.filter((i) => i.food_id !== food_id));
-    } catch (err) {
-      alert("Failed to delete menu item. Please try again.");
-      console.error(err);
+      const data = await res.json();
+      if (res.ok === false) {
+        setOrderError(data.message || "Could not update the order status.");
+        return;
+      }
+      setOrders((previousOrders) =>
+        previousOrders.map((order) => {
+          if (order.order_id === orderId) return data;
+          return order;
+        })
+      );
+    } catch {
+      setOrderError("Could not connect to the server. Please try again.");
+    }
+  };
+
+  const menuErrorText = (error) => {
+    if (error instanceof TypeError) {
+      return "Could not connect to the server. Please try again.";
+    }
+
+    if (error.message) {
+      return error.message;
+    }
+
+    return "Something went wrong. Please try again.";
+  };
+
+  const handleToggleStock = async (foodId) => {
+    const item = contextMenuItems.find((food) => food.food_id === foodId);
+    if (item == null) return;
+
+    let availability = true;
+    if (item.availability === true) {
+      availability = false;
+    }
+
+    setMenuNotice(null);
+
+    try {
+      const response = await fetch(`/api/menu/${foodId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          ...authHeaders("admin"),
+        },
+        body: JSON.stringify({ availability }),
+      });
+      const savedItem = await readMenuResponse(response);
+      setContextMenuItems((currentItems) => currentItems.map((food) => {
+        if (food.food_id === foodId) return savedItem;
+        return food;
+      }));
+      setMenuNotice({ type: "success", text: "Item availability updated." });
+    } catch (error) {
+      setMenuNotice({ type: "error", text: menuErrorText(error) });
+    }
+  };
+
+  const handleDeleteItem = async (foodId) => {
+    setMenuNotice(null);
+
+    try {
+      const response = await fetch(`/api/menu/${foodId}`, {
+        method: "DELETE",
+        headers: authHeaders("admin"),
+      });
+      await readMenuResponse(response);
+      setContextMenuItems((currentItems) =>
+        currentItems.filter((food) => food.food_id !== foodId)
+      );
+      setMenuNotice({ type: "success", text: "Menu item deleted." });
+    } catch (error) {
+      setMenuNotice({ type: "error", text: menuErrorText(error) });
     }
   };
 
@@ -194,66 +249,102 @@ export default function Admin() {
     setFormData({ name: "", price: "", category: "Burger", description: "" });
   };
 
-  const handleSubmitItem = (e) => {
-    e.preventDefault();
-    if (editingItem) {
-      const updatedItem = {
-        ...editingItem,
-        name: formData.name,
-        price: parseFloat(formData.price),
-        category: formData.category,
-        description: formData.description,
-        image: preview || editingItem.image,
+  const readMenuResponse = async (response) => {
+    let data = {};
 
-      };
+    try {
+      data = await response.json();
+    } catch {
+      if (response.ok === false) {
+        throw new Error("The server could not complete your request. Please try again.");
+      }
+    }
 
-      fetch(`/api/menu/${editingItem.food_id}`, {
-        method: "PATCH",
+    if (response.status === 401) {
+      throw new Error("Your session has expired. Please log in again.");
+    }
+
+    if (response.status === 403) {
+      throw new Error("Only an admin can change menu items.");
+    }
+
+    if (response.ok === false) {
+      if (data.message) {
+        throw new Error(data.message);
+      }
+      throw new Error("The menu request failed. Please try again.");
+    }
+
+    return data;
+  };
+
+  const handleSubmitItem = async (event) => {
+    event.preventDefault();
+    setMenuNotice(null);
+
+    if (formData.name.trim().length === 0) {
+      setMenuNotice({ type: "error", text: "Please enter an item name." });
+      return;
+    }
+
+    const price = Number(formData.price);
+    if (Number.isFinite(price) === false || price < 0 || price > 99999999.99) {
+      setMenuNotice({ type: "error", text: "Please enter a valid price between 0 and 99,999,999.99." });
+      return;
+    }
+
+    if (image !== null) {
+      setMenuNotice({ type: "error", text: "Photo uploads are not available yet. Please save without selecting a photo." });
+      return;
+    }
+
+    const item = {
+      name: formData.name.trim(),
+      price,
+      category: formData.category,
+      description: formData.description.trim(),
+    };
+
+    setMenuSaving(true);
+
+    try {
+      let url = "/api/menu";
+      let method = "POST";
+      let message = "Menu item added.";
+
+      if (editingItem !== null) {
+        url = `/api/menu/${editingItem.food_id}`;
+        method = "PATCH";
+        message = "Menu item updated.";
+      }
+
+      const response = await fetch(url, {
+        method,
         headers: {
           "Content-Type": "application/json",
+          ...authHeaders("admin"),
         },
-        body: JSON.stringify(updatedItem)
-      })
+        body: JSON.stringify(item),
+      });
+      const savedItem = await readMenuResponse(response);
 
-        .then((res) => res.json())
-        .then((savedItem) => {
-          setContextMenuItems((prev) =>
-            prev.map((i) =>
-              i.food_id === editingItem.food_id ? savedItem : i
-            )
-          );
-        });
+      if (editingItem !== null) {
+        setContextMenuItems((currentItems) => currentItems.map((food) => {
+          if (food.food_id === editingItem.food_id) return savedItem;
+          return food;
+        }));
+      } else {
+        setContextMenuItems((currentItems) => [savedItem, ...currentItems]);
+        setMenuPage(1);
+      }
 
-    } else {
-      const newItem = {
-        food_id: Date.now(),
-        name: formData.name,
-        price: parseFloat(formData.price),
-        category: formData.category,
-        description: formData.description,
-        availability: true,
-        image: preview,
-        deleted: false,
-      };
-      fetch("/api/menu", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(newItem),
-      })
-        .then((res) => res.json())
-        .then((savedItem) => {
-          setContextMenuItems((prev) => [...prev, savedItem].sort((a,b) => {
-            const categoryCompare = 
-            CATEGORY_ORDER.indexOf(a.category) - CATEGORY_ORDER.indexOf(b.category);
-            
-            if (categoryCompare !== 0) {return categoryCompare;}
-            return a.name.localeCompare(b.name);
-          })); 
-        });
+      cancelForm();
+      setMenuNotice({ type: "success", text: message });
+    } catch (error) {
+      setMenuNotice({ type: "error", text: menuErrorText(error) });
+    } finally {
+      setMenuSaving(false);
     }
-    cancelForm();
   };
 
   const handleLogout = () => {
@@ -288,22 +379,13 @@ export default function Admin() {
     marginBottom: 4,
   });
 
-  const filteredMenuItems = (
-    selectedCategory === "All"
-      ? contextMenuItems
-      : contextMenuItems.filter((item) => item.category === selectedCategory)
-  ).sort((a,b) => {
-    const categoryCompare = CATEGORY_ORDER.indexOf(a.category) - CATEGORY_ORDER.indexOf(b.category);
+  const currentOrderPage = orderPage;
+  const pageOrders = orders;
 
-    if (categoryCompare !== 0) {return categoryCompare;}
-    
-    return a.name.localeCompare(b.name);
-  });
-  
-  
+
   return (
     <div style={{ display: "flex", minHeight: "100dvh", width: "100%", background: "transparent" }}>
-      {/* ── Sidebar ─────────────────────────────────────────────────────── */}
+      {/* Sidebar */}
       <aside
         style={{
           width: 256,
@@ -378,10 +460,10 @@ export default function Admin() {
         </div>
       </aside>
 
-      {/* ── Main content ──────────────────────────────────────────────────── */}
+      {/* Main content */}
       <main style={{ flex: 1, overflow: "auto", minWidth: 0 }}>
         <div style={{ maxWidth: 1100, margin: "0 auto", padding: "32px" }}>
-          {/* ── Orders view ─────────────────────────────────────────────── */}
+          {/* Orders */}
           {activeView === "orders" && (
             <div>
               <div
@@ -404,7 +486,7 @@ export default function Admin() {
                 </h1>
 
                   <input type="text" placeholder="Search by Order ID or Customer" value={search}
-                  onChange={(e) => setSearch(e.target.value)}
+                  onChange={(e) => { setSearch(e.target.value); setOrderPage(1); }}
                   style={{
                     padding: "10px 14px",
                     width: 300,
@@ -416,7 +498,7 @@ export default function Admin() {
                   />
 
                 <select value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
+                onChange={(e) => { setStatusFilter(e.target.value); setOrderPage(1); }}
                 style={{
                   padding: "10px 14px",
                   borderRadius: 8,
@@ -437,26 +519,16 @@ export default function Admin() {
                   <option value="Cancelled">Cancelled</option>
                 </select>
 
-                {selectedOrders.length > 0 && (
-                  <button
-                    onClick={handleDeleteOrders}
-                    style={{
-                      padding: "10px 18px",
-                      background: "#ef4444",
-                      color: "#fff",
-                      border: "none",
-                      borderRadius: 8,
-                      fontSize: 14,
-                      fontWeight: 600,
-                      cursor: "pointer",
-                    }}
-                  >
-                    Delete Selected
-                  </button>
-                )}
+
               </div>
 
-              {orders.length === 0 ? (
+              {orderError && (
+                <div role="alert" style={{ color: "#991b1b", background: "#fef2f2", padding: 12, marginBottom: 16, borderRadius: 8 }}>
+                  {orderError}
+                </div>
+              )}
+
+              {totalOrders === 0 ? (
                 <div
                   style={{
                     background: "#fff",
@@ -467,7 +539,7 @@ export default function Admin() {
                     color: "#6b7280",
                   }}
                 >
-                  No orders yet.
+                  No orders match your search or status filter.
                 </div>
               ) : (
                 <div
@@ -487,7 +559,6 @@ export default function Admin() {
                         }}
                       >
                         {[
-                          "",
                           "Order ID",
                           "Customer",
                           "Address",
@@ -512,38 +583,13 @@ export default function Admin() {
                       </tr>
                     </thead>
                     <tbody>
-                      {(orders || []).filter((order) => {
-                      const query = search.toLowerCase();
-                      const liveName = customerNames[order.user_id];
-                      const customer = (liveName || order.customerName || order.customer || "").toLowerCase();
-                      const matchesStatus = statusFilter === "All" || order.status === statusFilter;
-
-                      return (
-                        matchesStatus && (
-                          String(order.order_id).includes(query) || customer.includes(query))
-                      );
-                      }).map((order) => (
+                      {pageOrders.map((order) => (
 
 
                         <tr
                           key={order.order_id}
                           style={{ borderBottom: "1px solid #f3f4f6" }}
                         >
-                          <td style={{ padding: "14px 20px" }}>
-                            <input
-                              type="checkbox"
-                              checked={selectedOrders.includes(order.order_id)}
-                              onChange={(e) => {
-                                if (e.target.checked) {
-                                  setSelectedOrders((prev) => [...prev, order.order_id]);
-                                } else {
-                                  setSelectedOrders((prev) =>
-                                    prev.filter((id) => id !== order.order_id)
-                                  );
-                                }
-                              }}
-                              />
-                              </td>
 
                           <td
                             style={{
@@ -595,7 +641,7 @@ export default function Admin() {
                                   (f) => f.food_id === i.food_id
                                 );
                                 return `${i.quantity}× ${
-                                  food?.name || "Unknown Items"
+                                  i.name || food?.name || "Unknown Items"
                                 }`;
                               })
                               .join(", ") || "No item Details"}
@@ -612,6 +658,7 @@ export default function Admin() {
                           <td style={{ padding: "14px 20px" }}>
                             <select
                               value={order.status}
+                              disabled={order.status === "Cancelled" || order.status === "Delivered"}
                               onChange={(e) =>
                                 handleStatusChange(
                                   order.order_id,
@@ -631,12 +678,12 @@ export default function Admin() {
                                 outline: "none",
                               }}
                             >
+                              {order.status === "Cancelled" && <option value="Cancelled">Cancelled</option>}
                               {[
                                 "Pending",
                                 "Preparing",
                                 "Ready",
                                 "Delivered",
-                                "Cancelled",
                               ].map((s) => (
                                 <option key={s} value={s}>
                                   {s}
@@ -648,14 +695,33 @@ export default function Admin() {
                       ))}
                     </tbody>
                   </table>
+                  {totalOrders > 0 && (
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 16, padding: 16 }}>
+                      <button
+                        type="button"
+                        onClick={() => setOrderPage(currentOrderPage - 1)}
+                        disabled={currentOrderPage === 1}
+                      >
+                        Previous
+                      </button>
+                      <span>Page {currentOrderPage} of {totalOrderPages}</span>
+                      <button
+                        type="button"
+                        onClick={() => setOrderPage(currentOrderPage + 1)}
+                        disabled={currentOrderPage === totalOrderPages}
+                      >
+                        Next
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
           )}
 
-          {/* ── Menu Editor view ─────────────────────────────────────────── */}
+          {/* Menu */}
           {activeView === "menu" && (
-            <div>
+            <div style={{ maxWidth: 1050 }}>
               <div
                 style={{
                   display: "flex",
@@ -677,7 +743,7 @@ export default function Admin() {
                   Menu Management
                 </h1>
                   <select value={selectedCategory} 
-                  onChange={(e) => setSelectedCategory(e.target.value)}
+                  onChange={(e) => { setSelectedCategory(e.target.value); setMenuPage(1); }}
                   style={{
                     padding: "10px 14px",
                     border: "none",
@@ -723,6 +789,17 @@ export default function Admin() {
                   + Add New Item
                 </button>
               </div>
+
+              {menuNotice && menuNotice.type === "error" && (
+                <div role="alert" style={{ background: "#fef2f2", color: "#991b1b", border: "1px solid #fecaca", borderRadius: 8, padding: "12px 16px", marginBottom: 16 }}>
+                  {menuNotice.text}
+                </div>
+              )}
+              {menuNotice && menuNotice.type === "success" && (
+                <div role="status" style={{ background: "#f0fdf4", color: "#166534", border: "1px solid #bbf7d0", borderRadius: 8, padding: "12px 16px", marginBottom: 16 }}>
+                  {menuNotice.text}
+                </div>
+              )}
 
               {/* Add / Edit form */}
               {showAddForm && (
@@ -791,6 +868,7 @@ export default function Admin() {
                         <input
                           required
                           type="number"
+                          min="0"
                           step="0.01"
                           placeholder="185.00"
                           value={formData.price}
@@ -908,6 +986,7 @@ export default function Admin() {
                     <div style={{ display: "flex", gap: 10 }}>
                       <button
                         type="submit"
+                        disabled={menuSaving}
                         style={{
                           padding: "10px 24px",
                           background: "#FF5A36",
@@ -920,11 +999,14 @@ export default function Admin() {
                           fontFamily: "inherit",
                         }}
                       >
-                        {editingItem ? "Save Changes" : "Add Item"}
+                        {menuSaving && "Saving..."}
+                        {menuSaving === false && editingItem !== null && "Save Changes"}
+                        {menuSaving === false && editingItem === null && "Add Item"}
                       </button>
                       <button
                         type="button"
                         onClick={cancelForm}
+                        disabled={menuSaving}
                         style={{
                           padding: "10px 24px",
                           background: "#fff",
@@ -949,10 +1031,18 @@ export default function Admin() {
                   background: "#fff",
                   borderRadius: 12,
                   border: "1px solid #e5e7eb",
-                  overflow: "hidden",
+                  overflowX: "auto",
                 }}
               >
-                <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                <table style={{ width: "100%", minWidth: 760, borderCollapse: "collapse", tableLayout: "fixed" }}>
+                  <colgroup>
+                    <col style={{ width: 84 }} />
+                    <col style={{ width: "25%" }} />
+                    <col style={{ width: "14%" }} />
+                    <col style={{ width: "12%" }} />
+                    <col style={{ width: "16%" }} />
+                    <col style={{ width: 112 }} />
+                  </colgroup>
                   <thead>
                     <tr
                       style={{
@@ -971,7 +1061,7 @@ export default function Admin() {
                         <th
                           key={h}
                           style={{
-                            padding: "12px 20px",
+                            padding: "10px 12px",
                             textAlign: "left",
                             fontSize: 13,
                             fontWeight: 600,
@@ -991,16 +1081,16 @@ export default function Admin() {
                         key={item.food_id}
                         style={{ borderBottom: "1px solid #f3f4f6" }}
                       >
-                        <td style={{ padding: "14px 20px" }}>
+                        <td style={{ padding: "8px 12px" }}>
                           {item.image ? (
                             <img
                               src={item.image}
                               alt={item.name}
                               style={{
-                                width: 60,
-                                height: 60,
+                                width: 52,
+                                height: 52,
                                 objectFit: "cover",
-                                marginTop: 8,
+                                display: "block",
                               }}
                             />
                           ) : (
@@ -1010,7 +1100,7 @@ export default function Admin() {
                           )}
                         </td>
 
-                        <td style={{ padding: "14px 20px" }}>
+                        <td style={{ padding: "8px 12px" }}>
                           <p
                             style={{
                               fontSize: 14,
@@ -1033,7 +1123,7 @@ export default function Admin() {
                         </td>
                         <td
                           style={{
-                            padding: "14px 20px",
+                            padding: "8px 12px",
                             fontSize: 14,
                             color: "#374151",
                           }}
@@ -1042,14 +1132,14 @@ export default function Admin() {
                         </td>
                         <td
                           style={{
-                            padding: "14px 20px",
+                            padding: "8px 12px",
                             fontSize: 14,
                             fontWeight: 600,
                           }}
                         >
                           ₱{item.price.toFixed(2)}
                         </td>
-                        <td style={{ padding: "14px 20px" }}>
+                        <td style={{ padding: "8px 12px" }}>
                           <label
                             style={{
                               display: "flex",
@@ -1081,7 +1171,7 @@ export default function Admin() {
                             </span>
                           </label>
                         </td>
-                        <td style={{ padding: "14px 20px" }}>
+                        <td style={{ padding: "8px 12px" }}>
                           <div style={{ display: "flex", gap: 8 }}>
                             <button
                               onClick={() => startEdit(item)}
@@ -1137,20 +1227,29 @@ export default function Admin() {
                     ))}
                   </tbody>
                 </table>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 16, padding: 16 }}>
+                  <button type="button" onClick={() => setMenuPage(menuPage - 1)} disabled={menuPage === 1}>
+                    Previous
+                  </button>
+                  <span>Page {menuPage} of {totalMenuPages}</span>
+                  <button type="button" onClick={() => setMenuPage(menuPage + 1)} disabled={menuPage >= totalMenuPages}>
+                    Next
+                  </button>
+                </div>
               </div>
             </div>
           )}
 
-          {/* ── Statistics view ─────────────────────────────────────────── */}
-          {activeView === "stats" && ( <Statistics orders={orders} contextMenuItems={contextMenuItems} /> )}
+          {/* Statistics */}
+          {activeView === "stats" && ( <Statistics /> )}
 
-          {/* ── Coupons view ─────────────────────────────────────────── */}
+          {/* Coupons */}
           {activeView === "coupons" && ( <CouponManager/> )}
 
-          {/* ── Notifications view ──────────────────────────────────── */}
+          {/* Notifications */}
           {activeView === "notifications" && ( <NotificationManager/> )}
 
-          {/* ── Users view ──────────────────────────────────────────── */}
+          {/* Users */}
           {activeView === "users" && ( <UserManager/> )}
 
   
@@ -1174,7 +1273,7 @@ export default function Admin() {
                 textAlign: "center",
               }}
               >
-                <p>Are you sure you want to delete this item?</p>
+                <p>Are you sure you want to delete {itemToDelete && <strong>{itemToDelete.name}</strong>}?</p>
                 <div style={{ marginTop: 20 }}>
                   <button
                     onClick={() => {

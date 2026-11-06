@@ -63,7 +63,7 @@ public class CartController(AppDbContext db) : ControllerBase
         try
         {
             await using var tx = await db.Database.BeginTransactionAsync();
-            await db.CartItems.Where(c => c.UserId == userId).ExecuteDeleteAsync();
+            await db.CartItems.IgnoreQueryFilters().Where(c => c.UserId == userId).ExecuteDeleteAsync();
             foreach (var l in lines.Where(l => valid.Contains(l.FoodId)))
                 db.CartItems.Add(new CartItem
                 {

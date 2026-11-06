@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { authHeaders } from "../services/authService";
 
 export default function CouponManager() {
   const [coupons, setCoupons] = useState([]);
@@ -45,6 +46,7 @@ export default function CouponManager() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          ...authHeaders("admin"),
         },
         body: JSON.stringify({
           ...newCoupon,
@@ -78,9 +80,14 @@ export default function CouponManager() {
 
   async function deleteCoupon(code) {
     try {
-      await fetch(`/api/coupons/${code}`, {
+      const response = await fetch(`/api/coupons/${code}`, {
         method: "DELETE",
+        headers: authHeaders("admin"),
       });
+      if (response.ok === false) {
+        setMessage("Failed to delete coupon. Please check your admin login.");
+        return;
+      }
 
       fetchCoupons();
     } catch (err) {

@@ -15,6 +15,12 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 
     protected override void OnModelCreating(ModelBuilder b)
     {
+        b.Entity<MenuItem>().HasQueryFilter(item => item.IsDeleted == false);
+        b.Entity<Coupon>().HasQueryFilter(coupon => coupon.IsDeleted == false);
+        b.Entity<Notification>().HasQueryFilter(notification => notification.IsDeleted == false);
+        b.Entity<CartItem>().HasQueryFilter(item => item.MenuItem.IsDeleted == false);
+        b.Entity<NotificationRead>().HasQueryFilter(read => read.Notification.IsDeleted == false);
+
         b.Entity<User>().HasIndex(u => u.Email).IsUnique();
         b.Entity<MenuItem>().Property(m => m.Price).HasPrecision(10, 2);
         b.Entity<CartItem>().HasIndex(c => new { c.UserId, c.MenuItemId }).IsUnique();

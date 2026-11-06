@@ -43,6 +43,7 @@ public class NotificationsController(AppDbContext db) : ControllerBase
     }
 
     // Admin history: broadcasts only (order updates are per-customer noise).
+    [Authorize(Roles = "admin")]
     [HttpGet("all")]
     public async Task<IActionResult> All()
     {
@@ -53,6 +54,7 @@ public class NotificationsController(AppDbContext db) : ControllerBase
         return Ok(list.Select(n => ToDto(n)));
     }
 
+    [Authorize(Roles = "admin")]
     [HttpPost]
     public async Task<IActionResult> Create(NotificationCreate req)
     {
@@ -76,13 +78,13 @@ public class NotificationsController(AppDbContext db) : ControllerBase
         return StatusCode(201, ToDto(notification));
     }
 
+    [Authorize(Roles = "admin")]
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Delete(int id)
     {
         var notification = await db.Notifications.FindAsync(id);
         if (notification is null) return NotFound(new { message = "Notification not found." });
-        db.NotificationReads.RemoveRange(db.NotificationReads.Where(r => r.NotificationId == id));
-        db.Notifications.Remove(notification);
+        notification.IsDeleted = true;
         await db.SaveChangesAsync();
         return Ok(new { message = "Notification deleted." });
     }

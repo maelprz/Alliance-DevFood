@@ -20,6 +20,7 @@ lerna-debug.log*
 
 # EDITOR SETTINGS (The Sync Fix)
 # We ignore the folder clutter but SHARE the rules
+.vs/
 .vscode/*
 !.vscode/settings.json
 !.vscode/extensions.json

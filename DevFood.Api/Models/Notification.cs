@@ -1,6 +1,7 @@
 public class Notification
 {
     public int Id { get; set; }
+    public bool IsDeleted { get; set; }
     // null = broadcast to every customer
     public int? UserId { get; set; }
     public User? User { get; set; }

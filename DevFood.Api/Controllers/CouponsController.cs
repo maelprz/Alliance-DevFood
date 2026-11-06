@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -19,6 +20,7 @@ public class CouponsController(AppDbContext db) : ControllerBase
     public async Task<IActionResult> GetAll()
         => Ok((await db.Coupons.OrderBy(c => c.ExpiresAt).ToListAsync()).Select(ToDto));
 
+    [Authorize(Roles = "admin")]
     [HttpPost]
     public async Task<IActionResult> Create(CouponCreate req)
     {
@@ -29,7 +31,7 @@ public class CouponsController(AppDbContext db) : ControllerBase
             return BadRequest(new { message = "Discount must be between 1 and 100 percent." });
         if (req.MinOrder < 0)
             return BadRequest(new { message = "Minimum order cannot be negative." });
-        if (await db.Coupons.AnyAsync(c => c.Code == code))
+        if (await db.Coupons.IgnoreQueryFilters().AnyAsync(c => c.Code == code))
             return Conflict(new { message = "A coupon with this code already exists." });
 
         var coupon = new Coupon
@@ -44,13 +46,14 @@ public class CouponsController(AppDbContext db) : ControllerBase
         return StatusCode(201, ToDto(coupon));
     }
 
+    [Authorize(Roles = "admin")]
     [HttpDelete("{code}")]
     public async Task<IActionResult> Delete(string code)
     {
         var normalized = code.Trim().ToUpperInvariant();
         var coupon = await db.Coupons.FirstOrDefaultAsync(c => c.Code == normalized);
         if (coupon is null) return NotFound(new { message = "Coupon not found." });
-        db.Coupons.Remove(coupon);
+        coupon.IsDeleted = true;
         await db.SaveChangesAsync();
         return Ok(new { message = "Coupon deleted." });
     }

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { OrderContext } from "./OrderContext";
 import { useApp } from "./useApp";
+import { authHeaders } from "../services/authService";
 
 // Server-backed order persistence (server/orders.json), mirroring users.json.
 // Each mutation round-trips through Express; local state mirrors the server response.
@@ -102,8 +103,8 @@ export function OrderProvider({ children }) {
     try {
       const res = await fetch(`/api/orders/${activeOrder.order_id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "Cancelled", actor: "customer" }),
+        headers: { "Content-Type": "application/json", ...authHeaders() },
+        body: JSON.stringify({ status: "Cancelled" }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));

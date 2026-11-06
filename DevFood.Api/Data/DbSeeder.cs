@@ -29,7 +29,7 @@ public static class DbSeeder
             using var scope = app.Services.CreateScope();
             var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-            if (!await db.MenuItems.AnyAsync())
+            if (!await db.MenuItems.IgnoreQueryFilters().AnyAsync())
             {
                 var path = Path.Combine(AppContext.BaseDirectory, "Data", "menuSeed.json");
                 var seed = JsonSerializer.Deserialize<List<MenuSeed>>(await File.ReadAllTextAsync(path)) ?? [];

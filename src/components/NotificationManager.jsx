@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { authHeaders } from "../services/authService";
 
 const AUDIENCE_LABEL = {
   all: "Everyone",
@@ -17,7 +18,7 @@ export default function NotificationManager() {
 
   async function fetchHistory() {
     try {
-      const res = await fetch("/api/notifications/all");
+      const res = await fetch("/api/notifications/all", { headers: authHeaders("admin") });
       const data = await res.json();
       setHistory(Array.isArray(data) ? data : []);
     } catch (err) {
@@ -31,7 +32,7 @@ export default function NotificationManager() {
       const data = await res.json();
       setCoupons(Array.isArray(data) ? data : []);
     } catch {
-      // Coupon list is optional — composer still works without it.
+      // Notifications can be sent without a coupon.
     }
   }
 
@@ -50,7 +51,7 @@ export default function NotificationManager() {
     try {
       const res = await fetch("/api/notifications", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...authHeaders("admin") },
         body: JSON.stringify({
           title: form.title,
           message: form.body,
@@ -76,9 +77,14 @@ export default function NotificationManager() {
 
   async function deleteNotification(id) {
     try {
-      await fetch(`/api/notifications/${id}`, {
+      const response = await fetch(`/api/notifications/${id}`, {
         method: "DELETE",
+        headers: authHeaders("admin"),
       });
+      if (response.ok === false) {
+        setMessage("Failed to delete notification. Please check your admin login.");
+        return;
+      }
       fetchHistory();
     } catch (err) {
       console.error(err);
@@ -133,7 +139,7 @@ export default function NotificationManager() {
         </div>
       )}
 
-      {/* COMPOSE BROADCAST */}
+      {/* Send notification */}
       <div
         style={{
           background: "#fff",
@@ -208,7 +214,7 @@ export default function NotificationManager() {
         </button>
       </div>
 
-      {/* HISTORY */}
+      {/* Notification history */}
       <h2 style={{ fontSize: 16, fontWeight: 600, margin: "0 0 12px" }}>
         Recent notifications
       </h2>

@@ -82,6 +82,10 @@ namespace DevFood.Api.Migrations
                         .HasColumnType("numeric(10,2)")
                         .HasColumnName("min_order");
 
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_deleted");
+
                     b.HasKey("Id")
                         .HasName("pk_coupons");
 
@@ -129,6 +133,10 @@ namespace DevFood.Api.Migrations
                         .HasColumnType("numeric(10,2)")
                         .HasColumnName("price");
 
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_deleted");
+
                     b.HasKey("Id")
                         .HasName("pk_menu_items");
 
@@ -175,6 +183,10 @@ namespace DevFood.Api.Migrations
                     b.Property<int?>("UserId")
                         .HasColumnType("integer")
                         .HasColumnName("user_id");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_deleted");
 
                     b.HasKey("Id")
                         .HasName("pk_notifications");

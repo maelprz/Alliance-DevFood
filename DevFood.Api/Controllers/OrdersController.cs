@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -30,7 +31,7 @@ public class OrdersController(AppDbContext db, IConfiguration config) : Controll
     static readonly string[] Statuses = ["Pending", "Preparing", "Ready", "Delivered", "Cancelled"];
     static readonly string[] PaymentMethods = ["credit-card", "gcash", "cod"];
 
-    static object ToDto(Order o) => new
+    public static object ToDto(Order o) => new
     {
         order_id = o.Id,
         user_id = o.UserId,
@@ -150,7 +151,7 @@ public class OrdersController(AppDbContext db, IConfiguration config) : Controll
         order.TotalAmount = order.Subtotal - order.DiscountAmount + order.DeliveryFee;
 
         db.Orders.Add(order);
-        db.CartItems.RemoveRange(db.CartItems.Where(c => c.UserId == user.Id));
+        db.CartItems.RemoveRange(db.CartItems.IgnoreQueryFilters().Where(c => c.UserId == user.Id));
         await db.SaveChangesAsync();
 
         // Order Confirmed notification (needs the generated order id, hence the second save).
@@ -167,6 +168,7 @@ public class OrdersController(AppDbContext db, IConfiguration config) : Controll
         return StatusCode(201, ToDto(order));
     }
 
+    [Authorize]
     [HttpPatch("{id:int}")]
     public async Task<IActionResult> Patch(int id, OrderPatch req)
     {
@@ -175,9 +177,20 @@ public class OrdersController(AppDbContext db, IConfiguration config) : Controll
         var status = Statuses.FirstOrDefault(s => s.Equals(req.Status, StringComparison.OrdinalIgnoreCase));
         if (status is null) return BadRequest(new { message = "Unknown order status." });
 
-        var byCustomer = req.Actor == "customer";
-        if (byCustomer && (status != "Cancelled" || order.Status != "Pending"))
-            return BadRequest(new { message = "Orders can only be cancelled while they are still Pending." });
+        var byCustomer = User.IsAdmin() == false;
+        if (byCustomer)
+        {
+            if (User.UserId() != order.UserId) return Forbid();
+            if (status != "Cancelled" || order.Status != "Pending")
+                return BadRequest(new { message = "You can only cancel your own pending order." });
+        }
+        else
+        {
+            if (status == "Cancelled")
+                return BadRequest(new { message = "Only the customer can cancel an order." });
+            if (order.Status == "Cancelled" || order.Status == "Delivered")
+                return BadRequest(new { message = "Completed or cancelled orders cannot be changed." });
+        }
 
         if (status != order.Status)
         {
@@ -196,13 +209,4 @@ public class OrdersController(AppDbContext db, IConfiguration config) : Controll
         return Ok(ToDto(order));
     }
 
-    [HttpDelete("{id:int}")]
-    public async Task<IActionResult> Delete(int id)
-    {
-        var order = await db.Orders.FindAsync(id);
-        if (order is null) return NotFound(new { message = "Order not found." });
-        db.Orders.Remove(order);
-        await db.SaveChangesAsync();
-        return Ok(new { message = "Order deleted." });
-    }
 }
