@@ -94,26 +94,6 @@ export function OrderProvider({ children }) {
     refreshAllOrders();
   };
 
-  const advanceStatus = async () => {
-    if (!activeOrder) return;
-    const cycle = ["Pending", "Preparing", "Ready", "Delivered"];
-    const idx = cycle.indexOf(activeOrder.status);
-    const next = cycle[Math.min(idx + 1, cycle.length - 1)];
-    if (next === activeOrder.status) return;
-    try {
-      const res = await fetch(`/api/orders/${activeOrder.order_id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: next }),
-      });
-      if (!res.ok) return;
-      setActiveOrder((prev) => (prev ? { ...prev, status: next } : prev));
-      refreshAllOrders();
-    } catch {
-      // Network failure — leave local state unchanged so UI doesn't lie.
-    }
-  };
-
   // Cancel marks the order as "Cancelled" so it stays in records (visible in
   // admin and order history) instead of disappearing. Server enforces that
   // customers can only cancel while the order is still "Pending".
@@ -147,7 +127,6 @@ export function OrderProvider({ children }) {
         orderItems,
         activePayment,
         placeOrder,
-        advanceStatus,
         cancelOrder,
         orders,
         setOrders,
