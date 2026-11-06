@@ -36,8 +36,8 @@ function toAddress(result) {
   };
 }
 
-// Address text -> list of matching places in the Philippines.
-export async function searchAddress(query, near) {
+// One Nominatim search request.
+async function searchOnce(query, near) {
   const params = new URLSearchParams({
     q: query,
     format: "jsonv2",
@@ -55,6 +55,28 @@ export async function searchAddress(query, near) {
   if (!res.ok) throw new Error("Address search is unavailable right now.");
   const results = await res.json();
   return results.map(toAddress);
+}
+
+// Full addresses copied from Google Maps often start with a building name the
+// map data doesn't know ("USJ-R Quadricentennial Campus, 22 A. Borromeo St,
+// ..."). If the full text finds nothing, drop the first comma part and retry,
+// up to 3 requests, spaced out to respect Nominatim's one-per-second limit.
+const MAX_SEARCH_TRIES = 3;
+const pause = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// Address text -> { results, matched } where `matched` is the text that found
+// them (shorter than the input when a fallback was used).
+export async function searchAddress(query, near) {
+  let parts = query.split(",").map((s) => s.trim()).filter(Boolean);
+  for (let attempt = 0; attempt < MAX_SEARCH_TRIES && parts.length > 0; attempt++) {
+    if (attempt > 0) await pause(1100);
+    const text = parts.join(", ");
+    const results = await searchOnce(text, near);
+    if (results.length > 0) return { results, matched: text };
+    if (parts.length < 3) break; // don't shrink down to just a city
+    parts = parts.slice(1);
+  }
+  return { results: [], matched: null };
 }
 
 // Map pin -> the nearest street address.

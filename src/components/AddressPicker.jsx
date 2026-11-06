@@ -132,7 +132,7 @@ export default function AddressPicker({ initialQuery = "", onChange, error }) {
     if (!q) return;
     let cancelled = false;
     searchAddress(q, STORE)
-      .then((found) => {
+      .then(({ results: found }) => {
         if (cancelled) return;
         if (found[0]) {
           mapRef.current?.setView([found[0].lat, found[0].lng], 16);
@@ -157,9 +157,13 @@ export default function AddressPicker({ initialQuery = "", onChange, error }) {
     setSearching(true);
     setMessage(null);
     try {
-      const found = await searchAddress(q, STORE);
+      const { results: found, matched } = await searchAddress(q, STORE);
       setResults(found);
-      if (found.length === 0) setMessage("No matching places. Try a landmark or barangay name.");
+      if (found.length === 0) {
+        setMessage("No matching places. Try a landmark or barangay name.");
+      } else if (matched.length < q.replace(/\s*,\s*/g, ", ").length) {
+        setMessage(`No exact match, so showing results for "${matched}". Pick one, then move the pin to your exact spot.`);
+      }
     } catch (err) {
       setMessage(err.message);
     } finally {
