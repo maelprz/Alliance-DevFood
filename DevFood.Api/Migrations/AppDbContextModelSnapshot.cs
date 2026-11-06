@@ -236,6 +236,14 @@ namespace DevFood.Api.Migrations
                         .HasColumnType("numeric(10,2)")
                         .HasColumnName("delivery_fee");
 
+                    b.Property<double?>("DeliveryLat")
+                        .HasColumnType("double precision")
+                        .HasColumnName("delivery_lat");
+
+                    b.Property<double?>("DeliveryLng")
+                        .HasColumnType("double precision")
+                        .HasColumnName("delivery_lng");
+
                     b.Property<decimal>("DiscountAmount")
                         .HasPrecision(10, 2)
                         .HasColumnType("numeric(10,2)")

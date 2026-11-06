@@ -7,7 +7,9 @@ using Microsoft.EntityFrameworkCore;
 public record OrderHeader(
     [property: JsonPropertyName("user_id")] int UserId,
     [property: JsonPropertyName("coupon_code")] string? CouponCode,
-    [property: JsonPropertyName("delivery_address")] string? DeliveryAddress);
+    [property: JsonPropertyName("delivery_address")] string? DeliveryAddress,
+    [property: JsonPropertyName("delivery_lat")] double? DeliveryLat = null,
+    [property: JsonPropertyName("delivery_lng")] double? DeliveryLng = null);
 
 public record OrderLine(
     [property: JsonPropertyName("food_id")] int FoodId,
@@ -22,7 +24,7 @@ public record OrderPatch(string? Status, string? Actor);
 
 [ApiController]
 [Route("api/orders")]
-public class OrdersController(AppDbContext db) : ControllerBase
+public class OrdersController(AppDbContext db, IConfiguration config) : ControllerBase
 {
     public const decimal DeliveryFee = 49.00m;
     static readonly string[] Statuses = ["Pending", "Preparing", "Ready", "Delivered", "Cancelled"];
@@ -40,6 +42,8 @@ public class OrdersController(AppDbContext db) : ControllerBase
         discount_amount = o.DiscountAmount,
         total_amount = o.TotalAmount,
         delivery_address = o.DeliveryAddress,
+        delivery_lat = o.DeliveryLat,
+        delivery_lng = o.DeliveryLng,
         created_at = o.CreatedAt,
         items = o.Items.OrderBy(i => i.Id).Select(i => new
         {
@@ -92,6 +96,16 @@ public class OrdersController(AppDbContext db) : ControllerBase
         if (user is null || !user.IsActive) return NotFound(new { message = "User not found." });
         if (string.IsNullOrWhiteSpace(req.Order.DeliveryAddress))
             return BadRequest(new { message = "Delivery address is required." });
+
+        // Delivery zone: the map pin must be within range of the store.
+        // Checked here too, because the browser check alone can be bypassed.
+        var (lat, lng) = (req.Order.DeliveryLat, req.Order.DeliveryLng);
+        if (lat is null || lng is null || lat is < -90 or > 90 || lng is < -180 or > 180)
+            return BadRequest(new { message = "Pick your delivery spot on the map." });
+        var zone = DeliveryZone.From(config);
+        var km = zone.DistanceKm(lat.Value, lng.Value);
+        if (km > zone.MaxKm)
+            return BadRequest(new { message = $"This spot is {km:0.0} km away. We only deliver within {zone.MaxKm:0.#} km." });
         var method = req.Payment?.PaymentMethod ?? "";
         if (!PaymentMethods.Contains(method))
             return BadRequest(new { message = "Unknown payment method." });
@@ -112,6 +126,8 @@ public class OrdersController(AppDbContext db) : ControllerBase
             UserId = user.Id,
             CustomerName = user.FullName,
             DeliveryAddress = req.Order.DeliveryAddress.Trim(),
+            DeliveryLat = lat,
+            DeliveryLng = lng,
             PaymentMethod = method,
             DeliveryFee = DeliveryFee,
             Items = lines.Select(l => new OrderItem

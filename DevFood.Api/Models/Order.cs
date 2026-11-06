@@ -11,6 +11,9 @@ public class Order
     public decimal DiscountAmount { get; set; }
     public decimal TotalAmount { get; set; }
     public string DeliveryAddress { get; set; } = "";
+    // Map pin the customer dropped at checkout (null on orders made before pins existed).
+    public double? DeliveryLat { get; set; }
+    public double? DeliveryLng { get; set; }
     public string PaymentMethod { get; set; } = "";
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public List<OrderItem> Items { get; set; } = [];
