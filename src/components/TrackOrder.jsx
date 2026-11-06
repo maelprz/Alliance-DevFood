@@ -3,6 +3,7 @@ import { useOrder } from "../context/useOrder";
 import { useNav } from "../context/useNav";
 import { useMenu } from "../hooks/useMenu";
 import Navbar from "./Navbar";
+import DeliveryMap from "./DeliveryMap";
 
 // ── Status config — DO NOT MODIFY (matches ERD exactly) ──────────────────────
 const STATUS_CYCLE = ["Pending", "Preparing", "Ready", "Delivered"];
@@ -24,7 +25,7 @@ const STATUS_META = {
     label: "Ready",
     color: "#7c3aed",
     bg: "#ede9fe",
-    desc: "Order is ready! Awaiting pickup or delivery.",
+    desc: "Your food is ready and your rider is on the way.",
   },
   Delivered: {
     label: "Delivered",
@@ -418,7 +419,7 @@ export default function TrackOrder() {
                 const descriptions = {
                   Pending: "Order Received",
                   Preparing: "In the Kitchen",
-                  Ready: "Awaiting Pickup / Rider",
+                  Ready: "Rider on the way",
                   Delivered: "Enjoy Your Meal!",
                 };
 
@@ -531,6 +532,15 @@ export default function TrackOrder() {
                 </p>
               </div>
             </div>
+
+            {/* ── Live delivery map (simulated rider) — orders with a map pin ── */}
+            {activeOrder.delivery_lat != null && activeOrder.delivery_lng != null && (
+              <DeliveryMap
+                orderId={activeOrder.order_id}
+                status={activeOrder.status}
+                dropoff={{ lat: activeOrder.delivery_lat, lng: activeOrder.delivery_lng }}
+              />
+            )}
 
             {/* ── Order Details (ERD fields) ─────────────────────────────────── */}
             <div

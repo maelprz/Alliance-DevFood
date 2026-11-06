@@ -103,3 +103,66 @@ export function formatDeliveryAddress({ details, street, city, zip }) {
     .join(", ");
   return details?.trim() ? `${details.trim()}, ${main}` : main;
 }
+
+// Road route between two points, for the delivery map on Track Order.
+// Uses the public OSRM demo server (OpenStreetMap roads, no API key). If it
+// is unreachable, falls back to a straight line at an assumed 25 km/h so the
+// map still works.
+// Returns { coords: [[lat, lng], ...], distanceKm, durationMin, byRoad }.
+export async function fetchRoute(from, to) {
+  const url =
+    `https://router.project-osrm.org/route/v1/driving/` +
+    `${from.lng},${from.lat};${to.lng},${to.lat}?overview=full&geometries=geojson`;
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error("route unavailable");
+    const data = await res.json();
+    const route = data.routes?.[0];
+    if (data.code !== "Ok" || !route) throw new Error("no route");
+    return {
+      coords: route.geometry.coordinates.map(([lng, lat]) => [lat, lng]),
+      distanceKm: route.distance / 1000,
+      durationMin: route.duration / 60,
+      byRoad: true,
+    };
+  } catch {
+    const km = distanceKm(from, to);
+    return {
+      coords: [
+        [from.lat, from.lng],
+        [to.lat, to.lng],
+      ],
+      distanceKm: km,
+      durationMin: (km / 25) * 60,
+      byRoad: false,
+    };
+  }
+}
+
+// The point a given fraction (0..1) of the way along a route.
+export function pointAlong(coords, fraction) {
+  if (coords.length === 0) return null;
+  if (fraction <= 0 || coords.length === 1) return coords[0];
+  if (fraction >= 1) return coords[coords.length - 1];
+  const legs = [];
+  let total = 0;
+  for (let i = 1; i < coords.length; i++) {
+    const d = distanceKm(
+      { lat: coords[i - 1][0], lng: coords[i - 1][1] },
+      { lat: coords[i][0], lng: coords[i][1] },
+    );
+    legs.push(d);
+    total += d;
+  }
+  let target = total * fraction;
+  for (let i = 0; i < legs.length; i++) {
+    if (target <= legs[i]) {
+      const t = legs[i] === 0 ? 0 : target / legs[i];
+      const [aLat, aLng] = coords[i];
+      const [bLat, bLng] = coords[i + 1];
+      return [aLat + (bLat - aLat) * t, aLng + (bLng - aLng) * t];
+    }
+    target -= legs[i];
+  }
+  return coords[coords.length - 1];
+}
