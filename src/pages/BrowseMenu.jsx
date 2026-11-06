@@ -7,7 +7,7 @@ import { useNav } from "../context/useNav";
 
 // Browse Menu page — Feature 2
 export default function BrowseMenu() {
-  const { menuItems } = useMenu();
+  const { menuItems, loading, error, retry } = useMenu();
   const { addToCart } = useCart();
   const { user } = useApp();
   const { navigate } = useNav();
@@ -32,6 +32,34 @@ export default function BrowseMenu() {
   "Dessert",
   "Drinks",
   ];
+
+  if (loading) {
+    return (
+      <div style={{ minHeight: "100vh" }}>
+        <Navbar />
+        <div style={{ padding: 60, textAlign: "center" }}>
+          <h3>Loading menu...</h3>
+          <p>Please wait while we fetch the menu.</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div style={{ minHeight: "100vh" }}>
+        <Navbar />
+        <div style={{ padding: 60, textAlign: "center" }}>
+          <h3>Unable to load menu</h3>
+          <p>{error}</p>
+          <button onClick={retry}>
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
+
 
   const filtered = menuItems
   .filter((item) => {
