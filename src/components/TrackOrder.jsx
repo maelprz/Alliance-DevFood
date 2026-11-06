@@ -32,6 +32,12 @@ const STATUS_META = {
     bg: "#dcfce7",
     desc: "Order delivered successfully. Enjoy your meal!",
   },
+  Cancelled: {
+    label: "Cancelled",
+    color: "#b91c1c",
+    bg: "#fee2e2",
+    desc: "This order was cancelled.",
+  },
 };
 
 // Inline SVGs render identically across OS/browsers, unlike emoji glyphs.
@@ -125,13 +131,18 @@ export default function TrackOrder() {
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [cancelError, setCancelError] = useState(null);
 
+  const orderId = activeOrder?.order_id;
+  // Delivered and Cancelled are final, so polling stops there.
+  const isFinal =
+    activeOrder?.status === "Delivered" || activeOrder?.status === "Cancelled";
+
   useEffect(() => {
-  if (!activeOrder?.order_id) return;
+  if (!orderId || isFinal) return;
 
   const interval = setInterval(async () => {
     try {
       const res = await fetch(
-        `/api/orders/${activeOrder.order_id}`
+        `/api/orders/${orderId}`
       );
 
       if (res.status === 404) {
@@ -150,7 +161,7 @@ export default function TrackOrder() {
   }, 1000);
 
   return () => clearInterval(interval);
-}, [activeOrder?.order_id]);
+}, [orderId, isFinal, navigate, setActiveOrder]);
 
   const currentIdx = activeOrder
     ? STATUS_CYCLE.indexOf(activeOrder.status)
@@ -228,6 +239,54 @@ export default function TrackOrder() {
                 />
               </div>
             ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Cancelled by the kitchen/admin while the customer was watching.
+  if (activeOrder?.status === "Cancelled") {
+    return (
+      <div style={{ minHeight: "100vh", background: "transparent" }}>
+        <Navbar />
+        <div style={{ maxWidth: 560, margin: "48px auto", padding: "0 16px" }}>
+          <div
+            role="status"
+            style={{
+              background: "#ffffff",
+              border: "1px solid #fecaca",
+              borderRadius: 12,
+              padding: 28,
+              textAlign: "center",
+            }}
+          >
+            <p style={{ fontSize: 18, fontWeight: 700, color: "#b91c1c", margin: 0 }}>
+              Order #{activeOrder.order_id} was cancelled
+            </p>
+            <p style={{ fontSize: 14, color: "#6b7280", margin: "8px 0 20px" }}>
+              Sorry about that. You won't be charged ₱
+              {(activeOrder.total_amount ?? 0).toFixed(2)} for this order.
+            </p>
+            <button
+              onClick={() => {
+                setActiveOrder(null);
+                navigate("menu");
+              }}
+              style={{
+                padding: "10px 24px",
+                background: "#FF5A36",
+                color: "#fff",
+                border: "none",
+                borderRadius: 8,
+                fontSize: 14,
+                fontWeight: 600,
+                cursor: "pointer",
+                fontFamily: "inherit",
+              }}
+            >
+              Back to Menu
+            </button>
           </div>
         </div>
       </div>
@@ -923,8 +982,8 @@ export default function TrackOrder() {
                 ],
                 ["Order #", String(activeOrder.order_id)],
                 [
-                  "Delivered",
-                  formatDeliveredAt(activeOrder.createdAt) ?? "Just now",
+                  "Ordered",
+                  formatDeliveredAt(activeOrder.created_at) ?? "—",
                 ],
               ].map(([label, value]) => (
                 <div
