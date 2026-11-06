@@ -2,12 +2,17 @@ import { useNav } from "../context/useNav";
 import { useApp } from "../context/useApp";
 import { useState } from "react";
 import { useCart } from "../context/CartContext";
+import { useOrder } from "../context/useOrder";
 import NotificationBell from "./NotificationBell";
 
 export default function Navbar() {
   const { navigate, view } = useNav();
   const { user, logout } = useApp();
   const { cartItems } = useCart();
+  // Order in progress -> show a way back to tracking from any page.
+  const { activeOrder } = useOrder();
+  const hasLiveOrder =
+    activeOrder && !["Delivered", "Cancelled"].includes(activeOrder.status);
   const [hoverLogout, setHoverLogout] = useState(false);
 
   const handleLogout = () => {
@@ -55,6 +60,33 @@ export default function Navbar() {
       <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
         {user && (
           <>
+            {hasLiveOrder && view !== "track" && (
+              <button
+                onClick={() => navigate("track")}
+                aria-label={`Track order #${activeOrder.order_id}, ${activeOrder.status}`}
+                style={{
+                  background: "#fff4f0",
+                  border: "1px solid #ffd2c4",
+                  color: "#c2410c",
+                  borderRadius: 999,
+                  padding: "6px 12px",
+                  cursor: "pointer",
+                  fontSize: 13,
+                  fontWeight: 600,
+                  fontFamily: "inherit",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                  whiteSpace: "nowrap",
+                }}
+              >
+                <span
+                  aria-hidden="true"
+                  style={{ width: 8, height: 8, borderRadius: "50%", background: "#FF5A36" }}
+                />
+                Track Order · {activeOrder.status}
+              </button>
+            )}
             <NotificationBell />
             <button
               onClick={() => navigate("cart")}
