@@ -81,7 +81,11 @@ export function OrderProvider({ children }) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ order, items, payment }),
     });
-    if (!res.ok) throw new Error("Failed to save order on server.");
+    if (!res.ok) {
+      // Surface the server's reason (item sold out, invalid coupon, ...).
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.message || "Failed to place your order. Please try again.");
+    }
     const saved = await res.json();
     const { items: savedItems, payment: savedPayment, ...savedOrder } = saved;
     setActiveOrder(savedOrder);

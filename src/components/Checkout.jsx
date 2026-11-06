@@ -4,11 +4,9 @@ import { useNav } from "../context/useNav";
 import { useApp } from "../context/useApp";
 import { useCart } from "../context/CartContext";
 import Navbar from "./Navbar";
-
-// generateOrderId OUTSIDE component — React Compiler rule (no Math.random() during render)
-function generateOrderId() {
-  return Math.floor(Math.random() * 90000) + 10000;
-}
+import AddressPicker from "./AddressPicker";
+import { MAX_DELIVERY_KM } from "../constants/delivery";
+import { formatDeliveryAddress } from "../utils/geo";
 
 // Inline SVG payment-method icons — render identically across OS/browsers.
 function PaymentIcon({ kind, color = "#374151" }) {
@@ -77,19 +75,17 @@ export default function Checkout() {
   const [showConfirm, setShowConfirm] = useState(false);
   const [fieldErrors, setFieldErrors] = useState({});
   const [paymentMethod, setPaymentMethod] = useState("credit-card");
-  // Delivery address — UI only (not in Order ERD, kept for visual completeness)
-  const [address, setAddress] = useState({ street: "", city: "", zip: "" });
-  // Saved profile address: read-only by default, edit toggle reveals the
-  // street/city/zip form below. Starts in "saved" mode when the user has one.
+  // Delivery location from the map picker (null until a pin resolves).
+  const [location, setLocation] = useState(null);
+  // Saved profile address is only used to pre-place the pin.
   // Prefer the structured fields; fall back to the legacy `address` string.
   const savedStreet = user?.addressStreet?.trim() ?? "";
   const savedCity = user?.addressCity?.trim() ?? "";
   const savedZip = user?.addressZip?.trim() ?? "";
   const savedAddress =
-    savedStreet && savedCity && savedZip
-      ? `${savedStreet}, ${savedCity} ${savedZip}`
+    savedStreet && savedCity
+      ? [savedStreet, `${savedCity} ${savedZip}`.trim()].join(", ")
       : user?.address?.trim() ?? "";
-  const [editingAddress, setEditingAddress] = useState(!savedAddress);
   // Payment detail fields — conditional on selected payment method
   const [cardDetails, setCardDetails] = useState({
     number: "",
@@ -163,23 +159,13 @@ export default function Checkout() {
   const validate = () => {
     const errors = {};
 
-    // Address fields are only validated when the user is editing them.
-    // When the saved profile address is used, no field validation is needed.
-    if (editingAddress) {
-      const streetVal = address.street.trim();
-      if (!streetVal) {
-        errors.street = "Street address is required.";
-      } else if (streetVal.length < 10) {
-        errors.street = "Enter a complete address (e.g. 123 Rizal Avenue).";
-      }
-      const cityVal = address.city.trim();
-      if (!cityVal) {
-        errors.city = "City is required.";
-      } else if (!/^[a-zA-Z\s]+$/.test(cityVal) || cityVal.length < 4) {
-        errors.city = "Enter a valid city name (e.g. Manila).";
-      }
-      if (!/^\d{4}$/.test(address.zip.trim()))
-        errors.zip = "ZIP must be a 4-digit number.";
+    // The map pin decides whether we can deliver (Grab-style zone check).
+    if (!location) {
+      errors.address = "Drop your pin on the map so the rider can find you.";
+    } else if (!location.inZone) {
+      errors.address = `This spot is ${location.distanceKm.toFixed(1)} km away. We only deliver within ${MAX_DELIVERY_KM} km.`;
+    } else if (!formatDeliveryAddress(location)) {
+      errors.address = "We couldn't read an address at this spot. Move the pin slightly.";
     }
 
     if (paymentMethod === "credit-card") {
@@ -219,50 +205,30 @@ export default function Checkout() {
     setLoading(true);
     setError(null);
     try {
-      await new Promise((r) => setTimeout(r, 1400));
-
-      // Build Order object — matches ERD exactly
+      // The server trusts only these fields; ids, prices and totals are
+      // recomputed there from the menu and coupon tables.
       const order = {
-        order_id: generateOrderId(),
-        user_id: user?.id ?? "guest",
-        customerName: user?.name ?? "Customer",
-        status: "Pending",
-
-        subtotal,
-        delivery_fee: DELIVERY_FEE,
-
+        user_id: user.id,
         coupon_code: appliedCoupon?.code || null,
-        discount_amount: discountAmount || 0,
-
-        total_amount,
-
-        delivery_address: editingAddress
-          ? `${address.street}, ${address.city} ${address.zip}`
-          : savedAddress,
-        created_at: new Date().toISOString(),
+        delivery_address: formatDeliveryAddress(location),
+        // Map pin — the API re-checks the delivery zone with these.
+        delivery_lat: location.lat,
+        delivery_lng: location.lng,
       };
-
-      // Build OrderItem array — matches ERD exactly
-      const items = cartItems.map((ci, idx) => ({
-        order_item_id: Date.now() + idx,
-        order_id: order.order_id,
+      const items = cartItems.map((ci) => ({
         food_id: ci.food_id,
         quantity: ci.quantity,
-        name: ci.name,
       }));
-
-      // Build Payment object — matches Payment ERD entity
       const payment = { payment_method: paymentMethod };
 
       await placeOrder({ order, items, payment });
 
       localStorage.removeItem("appliedCoupon");
-      console.log(localStorage.getItem("appliedCoupon"));
       clearCart();
       setPlaced(true);
       setTimeout(() => navigate("track"), 700);
-    } catch {
-      setError("Failed to place order. Please try again.");
+    } catch (err) {
+      setError(err.message || "Failed to place order. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -348,201 +314,30 @@ export default function Checkout() {
                 padding: 24,
               }}
             >
-              <div
+              <h2
                 style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  marginBottom: 20,
-                  gap: 12,
-                  flexWrap: "wrap",
+                  fontSize: 17,
+                  fontWeight: 600,
+                  color: "#111827",
+                  margin: "0 0 16px",
                 }}
               >
-                <h2
-                  style={{
-                    fontSize: 17,
-                    fontWeight: 600,
-                    color: "#111827",
-                    margin: 0,
-                  }}
-                >
-                  Delivery Address
-                </h2>
-                {savedAddress && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (editingAddress) {
-                        // Cancelling edit — restore saved address as the active choice
-                        setAddress({ street: "", city: "", zip: "" });
-                        setFieldErrors((prev) => ({
-                          ...prev,
-                          street: undefined,
-                          city: undefined,
-                          zip: undefined,
-                        }));
-                        setEditingAddress(false);
-                      } else {
-                        // Pre-fill from saved structured fields when available,
-                        // otherwise dump the legacy string into street.
-                        setAddress((prev) => ({
-                          street: prev.street || savedStreet || savedAddress,
-                          city: prev.city || savedCity,
-                          zip: prev.zip || savedZip,
-                        }));
-                        setEditingAddress(true);
-                      }
-                    }}
-                    style={{
-                      padding: "6px 14px",
-                      background: editingAddress ? "#fff" : "#FF5A36",
-                      color: editingAddress ? "#374151" : "#fff",
-                      border: editingAddress ? "1px solid #e5e7eb" : "none",
-                      borderRadius: 6,
-                      fontSize: 13,
-                      fontWeight: 600,
-                      cursor: "pointer",
-                      fontFamily: "inherit",
-                    }}
-                  >
-                    {editingAddress ? "Use Saved Address" : "Edit Address"}
-                  </button>
-                )}
-              </div>
-              {!editingAddress && savedAddress && (
-                <div
-                  style={{
-                    background: "#fdf6ef",
-                    border: "1px solid #f3e8df",
-                    borderRadius: 8,
-                    padding: "14px 16px",
-                  }}
-                >
-                  <p
-                    style={{
-                      fontSize: 12,
-                      color: "#6b7280",
-                      margin: 0,
-                      textTransform: "uppercase",
-                      letterSpacing: "0.04em",
-                    }}
-                  >
-                    Deliver to
-                  </p>
-                  <p
-                    style={{
-                      fontSize: 14,
-                      fontWeight: 500,
-                      color: "#111827",
-                      margin: "4px 0 0",
-                    }}
-                  >
-                    {savedAddress}
-                  </p>
-                  <p style={{ fontSize: 12, color: "#6b7280", margin: "6px 0 0" }}>
-                    Saved from your profile. Use the Edit Address button to change it for this order.
-                  </p>
-                </div>
+                Delivery Address
+              </h2>
+              {savedAddress && (
+                <p style={{ fontSize: 12, color: "#6b7280", margin: "-8px 0 12px" }}>
+                  We placed the pin at your saved address ({savedAddress}). Check it
+                  and move it if needed.
+                </p>
               )}
-              {editingAddress && (
-              <div
-                style={{ display: "flex", flexDirection: "column", gap: 14 }}
-              >
-                <div>
-                  <label
-                    style={{
-                      display: "block",
-                      fontSize: 13,
-                      fontWeight: 500,
-                      marginBottom: 6,
-                      color: "#374151",
-                    }}
-                  >
-                    Street Address
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="123 Rizal Avenue"
-                    value={address.street}
-                    onChange={(e) => {
-                      setAddress({ ...address, street: e.target.value });
-                      setFieldErrors((prev) => ({
-                        ...prev,
-                        street: undefined,
-                      }));
-                    }}
-                    className={inputClass}
-                    style={inputStyle("street")}
-                  />
-                  {fieldError("street")}
-                </div>
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "1fr 1fr",
-                    gap: 12,
-                  }}
-                >
-                  <div>
-                    <label
-                      style={{
-                        display: "block",
-                        fontSize: 13,
-                        fontWeight: 500,
-                        marginBottom: 6,
-                        color: "#374151",
-                      }}
-                    >
-                      City
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="Manila"
-                      value={address.city}
-                      onChange={(e) => {
-                        setAddress({ ...address, city: e.target.value });
-                        setFieldErrors((prev) => ({
-                          ...prev,
-                          city: undefined,
-                        }));
-                      }}
-                      className={inputClass}
-                      style={inputStyle("city")}
-                    />
-                    {fieldError("city")}
-                  </div>
-                  <div>
-                    <label
-                      style={{
-                        display: "block",
-                        fontSize: 13,
-                        fontWeight: 500,
-                        marginBottom: 6,
-                        color: "#374151",
-                      }}
-                    >
-                      ZIP Code
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="1000"
-                      maxLength={4}
-                      value={address.zip}
-                      onChange={(e) => {
-                        setAddress({
-                          ...address,
-                          zip: e.target.value.replace(/\D/g, ""),
-                        });
-                        setFieldErrors((prev) => ({ ...prev, zip: undefined }));
-                      }}
-                      className={inputClass}
-                      style={inputStyle("zip")}
-                    />
-                    {fieldError("zip")}
-                  </div>
-                </div>
-              </div>
-              )}
+              <AddressPicker
+                initialQuery={savedAddress}
+                error={fieldErrors.address}
+                onChange={(loc) => {
+                  setLocation(loc);
+                  setFieldErrors((prev) => ({ ...prev, address: undefined }));
+                }}
+              />
             </div>
 
             {/* Payment Method */}
