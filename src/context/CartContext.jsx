@@ -1,18 +1,18 @@
 import { createContext, useContext, useState, useEffect, useRef } from "react";
 import { useApp } from "./useApp";
+import { authHeaders } from "../services/authService";
 
 const CartContext = createContext();
 
-// CartProvider — server-backed cart persistence (server/cart.json).
-// Mirrors the auth pattern: GET on user change, PUT whenever the cart mutates.
+// CartProvider: server-backed cart (cart_items table in Supabase).
+// The API knows who you are from the login token, so no user_id is sent.
 export function CartProvider({ children }) {
   const { user } = useApp();
   const [cartItems, setCartItems] = useState([]);
-  // hydrating ref blocks the sync effect from firing during the initial GET,
-  // which would otherwise overwrite the freshly-fetched cart with [].
+  // Blocks the save effect while the initial GET is still loading.
   const hydrating = useRef(true);
 
-  // Hydrate from server whenever the logged-in user changes.
+  // Load the cart whenever the logged-in user changes.
   useEffect(() => {
     hydrating.current = true;
     if (!user?.id) {
@@ -20,8 +20,8 @@ export function CartProvider({ children }) {
       hydrating.current = false;
       return;
     }
-    fetch(`/api/cart?user_id=${encodeURIComponent(user.id)}`)
-      .then((r) => r.json())
+    fetch("/api/cart", { headers: authHeaders() })
+      .then((r) => (r.ok ? r.json() : { items: [] }))
       .then((data) => setCartItems(data.items ?? []))
       .catch(() => setCartItems([]))
       .finally(() => {
@@ -29,14 +29,22 @@ export function CartProvider({ children }) {
       });
   }, [user?.id]);
 
-  // Sync local state → server on every mutation (skipped during hydration).
+  // Save after the user stops clicking for 400 ms, so quick clicks make one request.
   useEffect(() => {
     if (hydrating.current || !user?.id) return;
-    fetch("/api/cart", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ user_id: user.id, items: cartItems }),
-    }).catch(() => {});
+    const timer = setTimeout(() => {
+      fetch("/api/cart", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", ...authHeaders() },
+        body: JSON.stringify({
+          items: cartItems.map((i) => ({
+            food_id: i.food_id,
+            quantity: i.quantity,
+          })),
+        }),
+      }).catch(() => {});
+    }, 400);
+    return () => clearTimeout(timer);
   }, [cartItems, user?.id]);
 
   const addToCart = (food) => {
@@ -69,13 +77,7 @@ export function CartProvider({ children }) {
 
   return (
     <CartContext.Provider
-      value={{
-        cartItems,
-        addToCart,
-        removeFromCart,
-        updateQty,
-        clearCart,
-      }}
+      value={{ cartItems, addToCart, removeFromCart, updateQty, clearCart }}
     >
       {children}
     </CartContext.Provider>
