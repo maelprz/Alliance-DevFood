@@ -9,8 +9,8 @@ public record DeliveryZone(string StoreName, double StoreLat, double StoreLng, d
         var s = config.GetSection("Delivery");
         return new DeliveryZone(
             s["StoreName"] ?? "DevFood Kitchen",
-            s.GetValue("StoreLat", 14.5896),
-            s.GetValue("StoreLng", 120.9811),
+            s.GetValue("StoreLat", 10.2951),
+            s.GetValue("StoreLng", 123.8973),
             s.GetValue("MaxKm", 7.0));
     }
 

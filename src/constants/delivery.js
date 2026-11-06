@@ -1,9 +1,10 @@
-// Where DevFood cooks from, and how far riders will go.
-// TODO(team): replace STORE with the real kitchen location before the demo.
+// Point A of the delivery simulation: a pretend kitchen. DevFood has no real
+// store, so this is set to USJ-R Quadricentennial Campus (A. Borromeo St,
+// Cebu City). Keep it in sync with "Delivery" in DevFood.Api/appsettings.json.
 export const STORE = {
   name: "DevFood Kitchen",
-  lat: 14.5896,
-  lng: 120.9811,
+  lat: 10.2951,
+  lng: 123.8973,
 };
 
 // Grab-style delivery zone: orders whose drop-off pin is farther than this
