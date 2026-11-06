@@ -6,6 +6,8 @@ import { useOrder } from "../context/useOrder";
 import Statistics from "./Statistics";
 import CouponManager from "../components/CouponManager";
 import NotificationManager from "../components/NotificationManager";
+import UserManager from "../components/UserManager";
+import { authHeaders } from "../services/authService";
 
 const STATUS_COLORS = {
   Pending: "#ca8a04",
@@ -59,7 +61,7 @@ export default function Admin() {
   useEffect (() => {
     const fetchOrders = async () => {
       try {
-        const res = await fetch("http://localhost:5000/api/orders");
+        const res = await fetch("/api/orders");
         const data = await res.json();
 
         setOrders(data);
@@ -77,7 +79,8 @@ export default function Admin() {
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        const res = await fetch("http://localhost:5000/api/users");
+        const res = await fetch("/api/users", { headers: authHeaders("admin") });
+        if (!res.ok) return;
         const users = await res.json();
         const map = {};
         for (const u of users) map[u.id] = u.name;
@@ -93,7 +96,7 @@ export default function Admin() {
 
   const handleStatusChange = async (order_id, newStatus) => {
     try {
-      const res = await fetch(`http://localhost:5000/api/orders/${order_id}`, {
+      const res = await fetch(`/api/orders/${order_id}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -117,7 +120,7 @@ export default function Admin() {
   const handleDeleteOrders = async () => {
     try {
       for (const orderId of selectedOrders) {
-        await fetch(`http://localhost:5000/api/orders/${orderId}`, {
+        await fetch(`/api/orders/${orderId}`, {
           method: "DELETE",
         });
       }
@@ -141,7 +144,7 @@ export default function Admin() {
     };
     
     try {
-      const res = await fetch(`http://localhost:5000/api/menu/${food_id}`, {
+      const res = await fetch(`/api/menu/${food_id}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -162,7 +165,7 @@ export default function Admin() {
 
   const handleDeleteItem = async (food_id) => {
     try {
-      await fetch(`http://localhost:5000/api/menu/${food_id}`, {
+      await fetch(`/api/menu/${food_id}`, {
         method: "DELETE",
       });
       setContextMenuItems((prev) => prev.filter((i) => i.food_id !== food_id));
@@ -204,7 +207,7 @@ export default function Admin() {
 
       };
 
-      fetch(`http://localhost:5000/api/menu/${editingItem.food_id}`, {
+      fetch(`/api/menu/${editingItem.food_id}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -232,7 +235,7 @@ export default function Admin() {
         image: preview,
         deleted: false,
       };
-      fetch("http://localhost:5000/api/menu", {
+      fetch("/api/menu", {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
@@ -341,6 +344,9 @@ export default function Admin() {
           </button>
           <button style={navBtnStyle(activeView === "notifications")} onClick={() => setActiveView("notifications")}>
             Notifications
+          </button>
+          <button style={navBtnStyle(activeView === "users")} onClick={() => setActiveView("users")}>
+            Users
           </button>
         </nav>
 
@@ -1143,6 +1149,9 @@ export default function Admin() {
 
           {/* ── Notifications view ──────────────────────────────────── */}
           {activeView === "notifications" && ( <NotificationManager/> )}
+
+          {/* ── Users view ──────────────────────────────────────────── */}
+          {activeView === "users" && ( <UserManager/> )}
 
   
           {showDeleteModal && (

@@ -1,0 +1,362 @@
+[
+  {
+    "food_id": 1,
+    "name": "Cheeseburger",
+    "price": 69,
+    "category": "Burger",
+    "availability": true,
+    "image": "https://images.unsplash.com/photo-1547584370-2cc98b8b8dc8?q=80&w=1171&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
+    "description": "Juicy beef paty with cheese in a soft bun"
+  },
+  {
+    "food_id": 2,
+    "name": "Double Cheeseburger",
+    "price": 99,
+    "category": "Burger",
+    "availability": true,
+    "image": "https://images.unsplash.com/photo-1678110707289-ab14382a1625?q=80&w=696&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
+    "description": "Two beef patties with melted cheese"
+  },
+  {
+    "food_id": 3,
+    "name": "Chicken Burger",
+    "price": 75,
+    "category": "Burger",
+    "availability": true,
+    "image": "https://images.unsplash.com/photo-1637710847214-f91d99669e18?q=80&w=721&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
+    "description": "Crispy Chicken fillet with mayo"
+  },
+  {
+    "food_id": 4,
+    "name": "Fish Sandwich",
+    "price": 79,
+    "category": "Sandwich",
+    "availability": true,
+    "image": "https://www.andy-cooks.com/cdn/shop/articles/20240831034047-andy-20cooks-20-20grilled-20fish-20sandwich.jpg?v=1725428134",
+    "description": "Breaded fish fillet with tartar sauce"
+  },
+  {
+    "food_id": 5,
+    "name": "Hotdog Sandwich",
+    "price": 50,
+    "category": "Sandwich",
+    "availability": true,
+    "image": "https://i.pinimg.com/736x/d5/60/af/d560affd0ebe452faf6a3083be599f7c.jpg",
+    "description": "Classic hotdog with ketchup & mayo"
+  },
+  {
+    "food_id": 6,
+    "name": "Clubhouse Sandwich",
+    "price": 85,
+    "category": "Sandwich",
+    "availability": true,
+    "image": "https://www.nestlegoodnes.com/ph/sites/default/files/styles/1_1_768px_width/public/srh_recipes/91afe3a3615aaa162847dc3fdcdda2da.jpg.webp?itok=UuYWI40a",
+    "description": "Ham, egg, lettuce, and mayo"
+  },
+  {
+    "food_id": 7,
+    "name": "1pc Fried Chicken W/ Rice",
+    "price": 95,
+    "category": "Chicken",
+    "availability": true,
+    "image": "https://delivery.giligansrestaurant.com/cdn/shop/products/2_Pieces_Fried_Chicken_with_Rice.jpg?v=1601024826",
+    "description": "A juicy crispy chicken with steamed rice"
+  },
+  {
+    "food_id": 8,
+    "name": "2pc Fried Chicken w/ Rice",
+    "price": 135,
+    "category": "Chicken",
+    "availability": true,
+    "image": "https://delivery.giligansrestaurant.com/cdn/shop/products/2_Pieces_Fried_Chicken_with_Rice.jpg?v=1601024826",
+    "description": "A double serving of juicy crispy chicken with steamed rice"
+  },
+  {
+    "food_id": 9,
+    "name": "Chicken Tenders (4pcs)",
+    "price": 85,
+    "category": "Chicken",
+    "availability": true,
+    "image": "https://www.simplyrecipes.com/thmb/mbGI_EKp-S9ZD5VAQTntW23tAfQ=/1500x0/filters:no_upscale():max_bytes(150000):strip_icc()/simply-recipes-air-fryer-chicken-tenders-lead-3-ef50aa06270c41ac8d26c90600d9d8cb.jpg",
+    "description": "Breaded chicken with dip"
+  },
+  {
+    "food_id": 10,
+    "name": "Chicken Nuggets (6pcs)",
+    "price": 80,
+    "category": "Chicken",
+    "availability": true,
+    "image": "https://static.toiimg.com/photo/83114901.cms",
+    "description": "Bite-sized crispy chicken"
+  },
+  {
+    "food_id": 11,
+    "name": "Popcorn Chicken",
+    "price": 85,
+    "category": "Chicken",
+    "availability": true,
+    "image": "https://lilluna.com/wp-content/uploads/2024/12/popcorn-chicken-resize-8.jpg",
+    "description": "Small crispy chicken bites"
+  },
+  {
+    "food_id": 12,
+    "name": "BBQ Chicken w/ Rice",
+    "price": 110,
+    "category": "Chicken",
+    "availability": true,
+    "image": "https://www.allrecipes.com/thmb/fyA4b7FSkQVBSWFaENsyA3zaJwo=/1500x0/filters:no_upscale():max_bytes(150000):strip_icc()/3296611-d1799f167c4945e5a9133be468cbd123.jpg",
+    "description": "Sweet grilled chicken"
+  },
+  {
+    "food_id": 13,
+    "name": "Chicken fillet w/ Rice",
+    "price": 105,
+    "category": "Chicken",
+    "availability": true,
+    "image": "https://www.goldilocksdelivery.ph/media/catalog/product/cache/9977b12f4820ee65c95bd6fc70ccbb2f/f/s/fs_gdschicken_chops_4_1.jpg",
+    "description": "Boneless fried chicken"
+  },
+  {
+    "food_id": 14,
+    "name": "Hawaiian Pizzas",
+    "price": 170,
+    "category": "Pizzas",
+    "availability": true,
+    "image": "https://img.freepik.com/premium-photo/top-view-hawaiian-pizza-with-juicy-pineapple-chunks-savory-ham-topped-with-mozzarella-cheese_1354780-2796.jpg?semt=ais_hybrid&w=740&q=80",
+    "description": ""
+  },
+  {
+    "food_id": 15,
+    "name": "Pepperoni Pizzas",
+    "price": 150,
+    "category": "Pizzas",
+    "availability": true,
+    "image": "https://static.vecteezy.com/system/resources/previews/050/704/900/non_2x/pepperoni-pizza-isolated-on-transparent-background-png.png",
+    "description": ""
+  },
+  {
+    "food_id": 16,
+    "name": "Spaghetti",
+    "price": 70,
+    "category": "Spaghetti",
+    "availability": true,
+    "image": "https://scientificinquirer.com/wp-content/uploads/2022/10/jollibee-spaghetti.png",
+    "description": "Sweet tomato sauce with hotdog"
+  },
+  {
+    "food_id": 17,
+    "name": "Carbonara",
+    "price": 95,
+    "category": "Spaghetti",
+    "availability": true,
+    "image": "https://img.freepik.com/premium-psd/psd-carbonara-png-transparent-background_1076489-370.jpg?w=360",
+    "description": "Creamy pasta with bacon bits"
+  },
+  {
+    "food_id": 18,
+    "name": "Mac & Cheese",
+    "price": 80,
+    "category": "Spaghetti",
+    "availability": true,
+    "image": "https://img.freepik.com/free-photo/ai-generated-pasta-food_23-2150664479.jpg?semt=ais_hybrid&w=740&q=80",
+    "description": "Cheesy macaroni comfort fish"
+  },
+  {
+    "food_id": 19,
+    "name": "Beef Teriyaki Rice",
+    "price": 120,
+    "category": "Rice Meals",
+    "availability": true,
+    "image": "https://png.pngtree.com/png-clipart/20240319/original/pngtree-beef-teriyaki-with-rice-png-image_14631826.png",
+    "description": "Sweet savory beef over rice"
+  },
+  {
+    "food_id": 20,
+    "name": "Sisig Rice Bowl",
+    "price": 110,
+    "category": "Rice Meals",
+    "availability": true,
+    "image": "https://static.vecteezy.com/system/resources/previews/069/508/502/non_2x/authentic-filipino-pork-sisig-with-rice-lemon-and-chili-isolated-on-transparent-background-free-png.png",
+    "description": "Choppped pork with spices & rice"
+  },
+  {
+    "food_id": 21,
+    "name": "Garlic Rice + Egg",
+    "price": 60,
+    "category": "Rice Meals",
+    "availability": true,
+    "image": "https://png.pngtree.com/png-clipart/20241012/original/pngtree-quick-thai-fried-rice-with-egg-a-family-favorite-fast-and-png-image_16285497.png",
+    "description": "Simple silog-style meal"
+  },
+  {
+    "food_id": 22,
+    "name": "French Fries (Regular)",
+    "price": 50,
+    "category": "Snacks",
+    "availability": true,
+    "image": "https://i.pinimg.com/736x/a8/bc/dd/a8bcdd98304fac2ef74a409108464bd2.jpg",
+    "description": "Crispy salted fries"
+  },
+  {
+    "food_id": 23,
+    "name": "Cheese Fries",
+    "price": 85,
+    "category": "Snacks",
+    "availability": true,
+    "image": "https://www.pngitem.com/pimgs/m/98-982253_fries-png-cheese-fries-with-clear-background-transparent.png",
+    "description": ""
+  },
+  {
+    "food_id": 24,
+    "name": "Onion Rings",
+    "price": 70,
+    "category": "Snacks",
+    "availability": true,
+    "image": "https://file.aiquickdraw.com/imgcompressed/img/compressed_79468abe4d95c7f999157d5a33d5e379.webp",
+    "description": "Crispy battered onion slices"
+  },
+  {
+    "food_id": 25,
+    "name": "Mozzarella Sticks (4pcs)",
+    "price": 95,
+    "category": "Snacks",
+    "availability": true,
+    "image": "https://png.pngtree.com/png-vector/20240830/ourmid/pngtree-mozzarella-cheese-sticks-on-transparent-background-png-image_13677638.png",
+    "description": "Cheese sticks with dip"
+  },
+  {
+    "food_id": 26,
+    "name": "Nachos w/ Cheese",
+    "price": 85,
+    "category": "Snacks",
+    "availability": true,
+    "image": "https://www.pamperedchef.com/iceberg/com/recipe/1552947-lg.jpg",
+    "description": "Crunchy chips with fish sauce"
+  },
+  {
+    "food_id": 27,
+    "name": "Tacos (2pcs)",
+    "price": 90,
+    "category": "Snacks",
+    "availability": true,
+    "image": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSVYAscX1eJdhIYyBLr7O_1XCyftVTXigMe6g&s",
+    "description": "Tacos filled with meat and veggies"
+  },
+  {
+    "food_id": 28,
+    "name": "Siomai (4pcs)",
+    "price": 50,
+    "category": "Snacks",
+    "availability": true,
+    "image": "https://pampangasbest.store/cdn/shop/products/siomai-250g-2.jpg?v=1633240920",
+    "description": "Steamed dumplings with sauce"
+  },
+  {
+    "food_id": 29,
+    "name": "Donut",
+    "price": 35,
+    "category": "Dessert",
+    "availability": true,
+    "image": "https://assets.epicurious.com/photos/54b0226d766062b20344580a/1:1/w_2560%2Cc_limit/51160200_glazed-doughnuts_1x1.jpg",
+    "description": "Soft sweet fried dough"
+  },
+  {
+    "food_id": 30,
+    "name": "Churros (3pcs)",
+    "price": 75,
+    "category": "Dessert",
+    "availability": true,
+    "image": "https://png.pngtree.com/png-vector/20250624/ourmid/pngtree-delicious-churros-and-chocolate-png-image_16585046.png",
+    "description": "Fried dough with chocolate dip"
+  },
+  {
+    "food_id": 31,
+    "name": "Brownies",
+    "price": 45,
+    "category": "Dessert",
+    "availability": true,
+    "image": "https://png.pngtree.com/png-vector/20250416/ourmid/pngtree-brownies-on-plate-png-image_15997718.png",
+    "description": "Rich chocolate square"
+  },
+  {
+    "food_id": 32,
+    "name": "Chocolate Cake",
+    "price": 90,
+    "category": "Dessert",
+    "availability": true,
+    "image": "https://png.pngtree.com/png-vector/20250118/ourmid/pngtree-slice-of-chocolate-cake-on-a-plate-representing-delicious-desserts-and-png-image_15261686.png",
+    "description": "Moist chocolate cake"
+  },
+  {
+    "food_id": 33,
+    "name": "Ice Cream Cup",
+    "price": 50,
+    "category": "Dessert",
+    "availability": true,
+    "image": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRhOu8E-DJyulhxEWEjMPlin6NjLbZ-qyikBA&s",
+    "description": "Chilled creamy dessert"
+  },
+  {
+    "food_id": 34,
+    "name": "Coca-Cola",
+    "price": 35,
+    "category": "Drinks",
+    "availability": true,
+    "image": "https://png.pngtree.com/png-clipart/20241108/original/pngtree-soda-bubbles-in-a-cola-with-ice-glass-coolness-png-image_16722547.png",
+    "description": "Classic cola soft drink"
+  },
+  {
+    "food_id": 35,
+    "name": "Pepsi",
+    "price": 35,
+    "category": "Drinks",
+    "availability": true,
+    "image": "https://www.bocountry.com/wp-content/uploads/2021/03/Pepsi.png",
+    "description": "Refreshing cola alternative"
+  },
+  {
+    "food_id": 36,
+    "name": "Sprite",
+    "price": 35,
+    "category": "Drinks",
+    "availability": true,
+    "image": "https://www.nicepng.com/png/detail/148-1481719_sprite-in-a-glass.png",
+    "description": ""
+  },
+  {
+    "food_id": 37,
+    "name": "Royal tru-Orange",
+    "price": 35,
+    "category": "Drinks",
+    "availability": true,
+    "image": "https://thumbs.dreamstime.com/b/glass-orange-soda-23559152.jpg",
+    "description": ""
+  },
+  {
+    "food_id": 38,
+    "name": "Mountain Dew",
+    "price": 35,
+    "category": "Drinks",
+    "availability": true,
+    "image": "https://www.bocountry.com/wp-content/uploads/2021/03/Mtn-Dew.png",
+    "description": ""
+  },
+  {
+    "food_id": 39,
+    "name": "Iced Tea",
+    "price": 30,
+    "category": "Drinks",
+    "availability": true,
+    "image": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQnKGxxiVsCVu9TxSmAxOk3Ek6-vzHl-_3Lmw&s",
+    "description": ""
+  },
+  {
+    "food_id": 40,
+    "name": "Fruit Juice",
+    "price": 30,
+    "category": "Drinks",
+    "availability": true,
+    "image": "https://static.vecteezy.com/system/resources/thumbnails/044/632/999/small/refreshing-orangy-bliss-enjoy-a-glass-of-orange-juice-with-fresh-orange-slices-free-png.png",
+    "description": ""
+  }
+]

@@ -14,7 +14,7 @@ export default function CouponManager() {
 
   async function fetchCoupons() {
     try {
-      const res = await fetch("http://localhost:5000/api/coupons");
+      const res = await fetch("/api/coupons");
       const data = await res.json();
       setCoupons(data);
     } catch (err) {
@@ -41,7 +41,7 @@ export default function CouponManager() {
       }
 
     try {
-      const res = await fetch("http://localhost:5000/api/coupons", {
+      const res = await fetch("/api/coupons", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -78,7 +78,7 @@ export default function CouponManager() {
 
   async function deleteCoupon(code) {
     try {
-      await fetch(`http://localhost:5000/api/coupons/${code}`, {
+      await fetch(`/api/coupons/${code}`, {
         method: "DELETE",
       });
 

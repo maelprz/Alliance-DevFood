@@ -66,4 +66,34 @@ public class CartController(AppDbContext db) : ControllerBase
 
         return Ok(await Load(req.UserId));
     }
+
+    // Shared with OrdersController so checkout re-validates the coupon server-side.
+    public static async Task<(Coupon? Coupon, string Error)> FindValidCoupon(AppDbContext db, string code, decimal subtotal)
+    {
+        var normalized = code.Trim().ToUpperInvariant();
+        var coupon = await db.Coupons.FirstOrDefaultAsync(c => c.Code == normalized);
+        if (coupon is null) return (null, "Invalid coupon code.");
+        if (coupon.ExpiresAt < DateOnly.FromDateTime(DateTime.UtcNow)) return (null, "This coupon has expired.");
+        if (subtotal < coupon.MinOrder)
+            return (null, $"This coupon requires a minimum order of ₱{coupon.MinOrder:0.00}.");
+        return (coupon, "");
+    }
+
+    [HttpPost("apply-coupon")]
+    public async Task<IActionResult> ApplyCoupon(ApplyCouponRequest req)
+    {
+        if (string.IsNullOrWhiteSpace(req.Code))
+            return BadRequest(new { valid = false, message = "Enter a coupon code." });
+        var (coupon, error) = await FindValidCoupon(db, req.Code, req.Subtotal ?? 0);
+        if (coupon is null) return BadRequest(new { valid = false, message = error });
+        return Ok(new
+        {
+            valid = true,
+            message = $"Coupon applied: {coupon.DiscountPercent}% off.",
+            code = coupon.Code,
+            discountPercent = coupon.DiscountPercent
+        });
+    }
 }
+
+public record ApplyCouponRequest(string? Code, decimal? Subtotal);

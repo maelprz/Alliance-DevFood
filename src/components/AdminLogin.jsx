@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNav } from "../context/useNav";
 import { useApp } from "../context/useApp";
+import { saveAdminToken } from "../services/authService";
 
 // Admin-only login page — separate from customer login
 // Admin entry point: navigate to 'admin-login' view
@@ -24,7 +25,7 @@ export default function AdminLogin() {
     e.preventDefault();
     setError("");
 
-    try {const res = await fetch("http://localhost:5000/api/auth/login", {
+    try {const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
@@ -41,14 +42,15 @@ export default function AdminLogin() {
       }
       if (data.user.role !=="admin") {
 
-        seetError("Unauthorized: Admin access only");
+        setError("Unauthorized: Admin access only");
         return;
       }
+      saveAdminToken(data.token);
       setAdminUser(data.user);
       navigate("admin");
 
     } catch (err) {
-      setError("An error occurred during login. Please try again.");
+      setError(err.message || "An error occurred during login. Please try again.");
     }
 
   };

@@ -17,7 +17,7 @@ export default function NotificationManager() {
 
   async function fetchHistory() {
     try {
-      const res = await fetch("http://localhost:5000/api/notifications/all");
+      const res = await fetch("/api/notifications/all");
       const data = await res.json();
       setHistory(Array.isArray(data) ? data : []);
     } catch (err) {
@@ -27,7 +27,7 @@ export default function NotificationManager() {
 
   async function fetchCoupons() {
     try {
-      const res = await fetch("http://localhost:5000/api/coupons");
+      const res = await fetch("/api/coupons");
       const data = await res.json();
       setCoupons(Array.isArray(data) ? data : []);
     } catch {
@@ -48,7 +48,7 @@ export default function NotificationManager() {
       return;
     }
     try {
-      const res = await fetch("http://localhost:5000/api/notifications", {
+      const res = await fetch("/api/notifications", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -76,7 +76,7 @@ export default function NotificationManager() {
 
   async function deleteNotification(id) {
     try {
-      await fetch(`http://localhost:5000/api/notifications/${id}`, {
+      await fetch(`/api/notifications/${id}`, {
         method: "DELETE",
       });
       fetchHistory();

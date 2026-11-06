@@ -12,7 +12,7 @@ export default defineConfig({
   ],
   server: {
     proxy: {
-      // Forwards all /api requests from React → Express server on port 5143.
+      // Forwards all /api requests from React → ASP.NET Core API on port 5143.
       // This eliminates CORS issues and avoids hardcoding the backend port in frontend code.
       "/api": {
         target: "http://localhost:5143",

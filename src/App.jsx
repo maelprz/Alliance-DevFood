@@ -14,6 +14,8 @@ import Profile from "./pages/Profile";
 import Checkout from "./components/Checkout";
 import TrackOrder from "./components/TrackOrder";
 import AdminLogin from "./components/AdminLogin";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
 // Admin is the heaviest page and only used by the admin role — lazy-load it
 // so customers never download it on first paint.
 const Admin = lazy(() => import("./pages/Admin"));
@@ -41,6 +43,8 @@ function AppRoutes() {
 
   const routes = {
     login: <Login />,
+    "forgot-password": <ForgotPassword />,
+    "reset-password": <ResetPassword />,
     menu: <BrowseMenu />,
     cart: <Cart />,
     profile: <Profile />,

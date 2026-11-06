@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useNotifications } from "../context/useNotifications";
 
 const TYPE_LABELS = {
+  order_confirmed: "Order Confirmed",
   order_status: "Order Update",
   coupon: "New Coupon",
   broadcast: "Announcement",

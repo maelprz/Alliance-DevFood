@@ -131,7 +131,7 @@ export default function TrackOrder() {
   const interval = setInterval(async () => {
     try {
       const res = await fetch(
-        `http://localhost:5000/api/orders/${activeOrder.order_id}`
+        `/api/orders/${activeOrder.order_id}`
       );
 
       if (res.status === 404) {

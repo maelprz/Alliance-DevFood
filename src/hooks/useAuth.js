@@ -15,7 +15,7 @@ import { MAX_LOGIN_ATTEMPTS } from "../constants/auth";
 
 // Exports only useAuth — React Compiler rule (one export type per file)
 
-const INITIAL_LOGIN_FORM = { email: "", password: "" };
+const INITIAL_LOGIN_FORM = { email: "", password: "", rememberMe: false };
 const INITIAL_REGISTER_FORM = {
   name: "",
   email: "",
@@ -135,7 +135,14 @@ export function useAuth({ onLoginSuccess }) {
       const result = await loginUser({
         email: loginForm.email,
         password: loginForm.password,
+        rememberMe: loginForm.rememberMe,
       });
+
+      // Deactivated account: the password was right, so don't count it as a failed attempt.
+      if (!result.success && result.deactivated) {
+        setServerError(result.message);
+        return;
+      }
 
       if (!result.success) {
         const { locked: nowLocked, attemptsLeft: left } = recordFailedAttempt();
