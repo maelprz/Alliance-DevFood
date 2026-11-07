@@ -7,6 +7,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<CartItem> CartItems => Set<CartItem>();
     public DbSet<Order> Orders => Set<Order>();
     public DbSet<OrderItem> OrderItems => Set<OrderItem>();
+    public DbSet<Payment> Payments => Set<Payment>();
     public DbSet<Coupon> Coupons => Set<Coupon>();
     public DbSet<Notification> Notifications => Set<Notification>();
     public DbSet<NotificationRead> NotificationReads => Set<NotificationRead>();
@@ -32,6 +33,14 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             o.Property(x => x.DiscountAmount).HasPrecision(10, 2);
             o.Property(x => x.TotalAmount).HasPrecision(10, 2);
             o.HasIndex(x => x.UserId);
+            // Every order query returns its payment (OrdersController.ToDto reads it).
+            o.Navigation(x => x.Payment).AutoInclude();
+        });
+        b.Entity<Payment>(p =>
+        {
+            p.HasOne(x => x.Order).WithOne(x => x.Payment)
+                .HasForeignKey<Payment>(x => x.OrderId).OnDelete(DeleteBehavior.Cascade);
+            p.HasIndex(x => x.OrderId).IsUnique();
         });
         b.Entity<OrderItem>(i =>
         {

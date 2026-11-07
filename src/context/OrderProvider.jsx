@@ -75,7 +75,7 @@ export function OrderProvider({ children }) {
 
   // order: { order_id, status, total_amount } — maps to Order ERD entity
   // items: [{ order_item_id, order_id, food_id, quantity }] — maps to OrderItem
-  // payment: { payment_method } — maps to Payment ERD entity
+  // payment: { payment_method: "cod" } — the server creates the Payment row (status Unpaid)
   const placeOrder = async ({ order, items, payment }) => {
     const res = await fetch("/api/orders", {
       method: "POST",
@@ -127,6 +127,7 @@ export function OrderProvider({ children }) {
         setActiveOrder,
         orderItems,
         activePayment,
+        setActivePayment,
         placeOrder,
         cancelOrder,
         orders,

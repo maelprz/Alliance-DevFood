@@ -14,9 +14,9 @@ public class Order
     // Map pin the customer dropped at checkout (null on orders made before pins existed).
     public double? DeliveryLat { get; set; }
     public double? DeliveryLng { get; set; }
-    public string PaymentMethod { get; set; } = "";
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public List<OrderItem> Items { get; set; } = [];
+    public Payment? Payment { get; set; }
 }
 
 public class OrderItem

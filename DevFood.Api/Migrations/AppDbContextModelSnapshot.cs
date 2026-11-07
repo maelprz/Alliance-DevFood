@@ -77,14 +77,14 @@ namespace DevFood.Api.Migrations
                         .HasColumnType("date")
                         .HasColumnName("expires_at");
 
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_deleted");
+
                     b.Property<decimal>("MinOrder")
                         .HasPrecision(10, 2)
                         .HasColumnType("numeric(10,2)")
                         .HasColumnName("min_order");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("boolean")
-                        .HasColumnName("is_deleted");
 
                     b.HasKey("Id")
                         .HasName("pk_coupons");
@@ -123,6 +123,10 @@ namespace DevFood.Api.Migrations
                         .HasColumnType("boolean")
                         .HasColumnName("is_available");
 
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_deleted");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("text")
@@ -132,10 +136,6 @@ namespace DevFood.Api.Migrations
                         .HasPrecision(10, 2)
                         .HasColumnType("numeric(10,2)")
                         .HasColumnName("price");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("boolean")
-                        .HasColumnName("is_deleted");
 
                     b.HasKey("Id")
                         .HasName("pk_menu_items");
@@ -165,6 +165,10 @@ namespace DevFood.Api.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_deleted");
+
                     b.Property<string>("Message")
                         .IsRequired()
                         .HasColumnType("text")
@@ -183,10 +187,6 @@ namespace DevFood.Api.Migrations
                     b.Property<int?>("UserId")
                         .HasColumnType("integer")
                         .HasColumnName("user_id");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("boolean")
-                        .HasColumnName("is_deleted");
 
                     b.HasKey("Id")
                         .HasName("pk_notifications");
@@ -260,11 +260,6 @@ namespace DevFood.Api.Migrations
                         .HasPrecision(10, 2)
                         .HasColumnType("numeric(10,2)")
                         .HasColumnName("discount_amount");
-
-                    b.Property<string>("PaymentMethod")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("payment_method");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -378,6 +373,39 @@ namespace DevFood.Api.Migrations
                         .HasDatabaseName("ix_password_reset_tokens_user_id");
 
                     b.ToTable("password_reset_tokens", (string)null);
+                });
+
+            modelBuilder.Entity("Payment", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("OrderId")
+                        .HasColumnType("integer")
+                        .HasColumnName("order_id");
+
+                    b.Property<string>("PaymentMethod")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("payment_method");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("status");
+
+                    b.HasKey("Id")
+                        .HasName("pk_payments");
+
+                    b.HasIndex("OrderId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_payments_order_id");
+
+                    b.ToTable("payments", (string)null);
                 });
 
             modelBuilder.Entity("RevokedToken", b =>
@@ -567,9 +595,23 @@ namespace DevFood.Api.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("Payment", b =>
+                {
+                    b.HasOne("Order", "Order")
+                        .WithOne("Payment")
+                        .HasForeignKey("Payment", "OrderId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_payments_orders_order_id");
+
+                    b.Navigation("Order");
+                });
+
             modelBuilder.Entity("Order", b =>
                 {
                     b.Navigation("Items");
+
+                    b.Navigation("Payment");
                 });
 #pragma warning restore 612, 618
         }

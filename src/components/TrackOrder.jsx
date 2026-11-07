@@ -97,9 +97,15 @@ function StatusIcon({ status, color, size = 28 }) {
 // Exports only TrackOrder component — React Compiler rule
 // Friendly labels for the stored payment_method values.
 const PAYMENT_LABEL = {
-  "credit-card": "Credit Card",
-  gcash: "GCash",
   cod: "Cash on Delivery",
+};
+
+// Payment status from the payments table. The server sets it from the order
+// status: Unpaid when placed, Paid when Delivered, Voided when Cancelled.
+const PAYMENT_STATUS_LABEL = {
+  Unpaid: "Unpaid (pay the rider in cash)",
+  Paid: "Paid",
+  Voided: "Voided",
 };
 
 function formatDeliveredAt(iso) {
@@ -123,6 +129,7 @@ export default function TrackOrder() {
     setActiveOrder,
     orderItems,
     activePayment,
+    setActivePayment,
     cancelOrder,
     loadingActive,
   } = useOrder();
@@ -154,6 +161,7 @@ export default function TrackOrder() {
       const updatedOrder = await res.json();
 
       setActiveOrder((prev) => ({ ...prev, status: updatedOrder.status || "Pending", }));
+      if (updatedOrder.payment) setActivePayment(updatedOrder.payment);
 
     } catch (err) {
       console.error("Error fetching order status:", err);
@@ -161,7 +169,7 @@ export default function TrackOrder() {
   }, 1000);
 
   return () => clearInterval(interval);
-}, [orderId, isFinal, navigate, setActiveOrder]);
+}, [orderId, isFinal, navigate, setActiveOrder, setActivePayment]);
 
   const currentIdx = activeOrder
     ? STATUS_CYCLE.indexOf(activeOrder.status)
@@ -565,6 +573,7 @@ export default function TrackOrder() {
               {[
                 ["Status", activeOrder.status, true],
                 ["Payment Method", PAYMENT_LABEL[activePayment?.payment_method] ?? activePayment?.payment_method ?? "—", false],
+                ["Payment", PAYMENT_STATUS_LABEL[activePayment?.status] ?? activePayment?.status ?? "—", false],
                 ["Delivery Address", activeOrder.delivery_address ?? "—", false],
                 ["Order Placed", activeOrder.created_at ? new Date(activeOrder.created_at).toLocaleString(undefined, { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" }) : "—", false],
               ].map(([key, val, isStatus]) => (

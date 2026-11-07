@@ -29,7 +29,8 @@ public class OrdersController(AppDbContext db, IConfiguration config) : Controll
 {
     public const decimal DeliveryFee = 49.00m;
     static readonly string[] Statuses = ["Pending", "Preparing", "Ready", "Delivered", "Cancelled"];
-    static readonly string[] PaymentMethods = ["credit-card", "gcash", "cod"];
+    // Cash on Delivery only (GCash and card were removed).
+    static readonly string[] PaymentMethods = ["cod"];
 
     public static object ToDto(Order o) => new
     {
@@ -55,7 +56,12 @@ public class OrdersController(AppDbContext db, IConfiguration config) : Controll
             price = i.Price,
             quantity = i.Quantity
         }),
-        payment = new { payment_method = o.PaymentMethod }
+        payment = new
+        {
+            payment_id = o.Payment?.Id,
+            payment_method = o.Payment?.PaymentMethod,
+            status = o.Payment?.Status
+        }
     };
 
     IQueryable<Order> WithItems => db.Orders.Include(o => o.Items);
@@ -109,7 +115,7 @@ public class OrdersController(AppDbContext db, IConfiguration config) : Controll
             return BadRequest(new { message = $"This spot is {km:0.0} km away. We only deliver within {zone.MaxKm:0.#} km." });
         var method = req.Payment?.PaymentMethod ?? "";
         if (!PaymentMethods.Contains(method))
-            return BadRequest(new { message = "Unknown payment method." });
+            return BadRequest(new { message = "We only accept Cash on Delivery." });
 
         var lines = req.Items
             .Where(i => i.Quantity >= 1)
@@ -129,7 +135,7 @@ public class OrdersController(AppDbContext db, IConfiguration config) : Controll
             DeliveryAddress = req.Order.DeliveryAddress.Trim(),
             DeliveryLat = lat,
             DeliveryLng = lng,
-            PaymentMethod = method,
+            Payment = new Payment { PaymentMethod = method, Status = "Unpaid" },
             DeliveryFee = DeliveryFee,
             Items = lines.Select(l => new OrderItem
             {
@@ -195,6 +201,12 @@ public class OrdersController(AppDbContext db, IConfiguration config) : Controll
         if (status != order.Status)
         {
             order.Status = status;
+            // Cash on Delivery: the rider collects on delivery; a cancelled order is never paid.
+            if (order.Payment is { } payment)
+            {
+                if (status == "Delivered") payment.Status = "Paid";
+                else if (status == "Cancelled") payment.Status = "Voided";
+            }
             if (!byCustomer)
                 db.Notifications.Add(new Notification
                 {

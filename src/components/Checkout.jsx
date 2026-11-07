@@ -21,23 +21,6 @@ function PaymentIcon({ kind, color = "#374151" }) {
     strokeLinejoin: "round",
     "aria-hidden": true,
   };
-  if (kind === "credit-card") {
-    return (
-      <svg {...props}>
-        <rect x="2" y="6" width="20" height="13" rx="2" />
-        <path d="M2 11h20" />
-        <path d="M6 16h3" />
-      </svg>
-    );
-  }
-  if (kind === "gcash") {
-    return (
-      <svg {...props}>
-        <rect x="6" y="2" width="12" height="20" rx="2" />
-        <path d="M11 18h2" />
-      </svg>
-    );
-  }
   if (kind === "cod") {
     return (
       <svg {...props}>
@@ -74,7 +57,6 @@ export default function Checkout() {
   const [error, setError] = useState(null);
   const [showConfirm, setShowConfirm] = useState(false);
   const [fieldErrors, setFieldErrors] = useState({});
-  const [paymentMethod, setPaymentMethod] = useState("credit-card");
   // Delivery location from the map picker (null until a pin resolves).
   const [location, setLocation] = useState(null);
   // Saved profile address is only used to pre-place the pin.
@@ -87,12 +69,6 @@ export default function Checkout() {
       ? [savedStreet, `${savedCity} ${savedZip}`.trim()].join(", ")
       : user?.address?.trim() ?? "";
   // Payment detail fields — conditional on selected payment method
-  const [cardDetails, setCardDetails] = useState({
-    number: "",
-    expiry: "",
-    cvv: "",
-  });
-  const [gcashPhone, setGcashPhone] = useState("");
 
   // CartContext spreads food data directly into each item — no separate lookup needed
   const lineItems = cartItems.map((ci) => ({
@@ -168,32 +144,6 @@ export default function Checkout() {
       errors.address = "We couldn't read an address at this spot. Move the pin slightly.";
     }
 
-    if (paymentMethod === "credit-card") {
-      const rawNum = cardDetails.number.replace(/\s/g, "");
-      if (!/^\d{16}$/.test(rawNum))
-        errors.cardNumber = "Card number must be 16 digits.";
-      if (!/^(0[1-9]|1[0-2])\/\d{2}$/.test(cardDetails.expiry)) {
-        errors.expiry = "Enter expiry as MM/YY.";
-      } else {
-        const [mm, yy] = cardDetails.expiry.split("/");
-        const expDate = new Date(
-          2000 + parseInt(yy, 10),
-          parseInt(mm, 10) - 1,
-          1,
-        );
-        const now = new Date();
-        if (expDate < new Date(now.getFullYear(), now.getMonth(), 1))
-          errors.expiry = "Card is expired.";
-      }
-      if (!/^\d{3,4}$/.test(cardDetails.cvv))
-        errors.cvv = "CVV must be 3 or 4 digits.";
-    }
-
-    if (paymentMethod === "gcash") {
-      if (!/^09\d{9}$/.test(gcashPhone.replace(/\s/g, "")))
-        errors.gcashPhone = "Enter a valid GCash number (09XXXXXXXXX).";
-    }
-
     setFieldErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -219,7 +169,7 @@ export default function Checkout() {
         food_id: ci.food_id,
         quantity: ci.quantity,
       }));
-      const payment = { payment_method: paymentMethod };
+      const payment = { payment_method: "cod" }; // Cash on Delivery only
 
       await placeOrder({ order, items, payment });
 
@@ -237,26 +187,6 @@ export default function Checkout() {
 
   // className enables :focus-visible styling defined in the <style> block at the
   // bottom of this component — required for keyboard accessibility (WCAG 2.4.7).
-  const inputStyle = (field) => ({
-    width: "100%",
-    padding: "10px 14px",
-    border: `1px solid ${fieldErrors[field] ? "#fca5a5" : "#e5e7eb"}`,
-    borderRadius: 8,
-    fontSize: 14,
-    outline: "none",
-    background: fieldErrors[field] ? "#fef2f2" : "#fdf6ef",
-    boxSizing: "border-box",
-    fontFamily: "inherit",
-  });
-  const inputClass = "checkout-input";
-
-  const fieldError = (field) =>
-    fieldErrors[field] ? (
-      <p style={{ fontSize: 12, color: "#dc2626", margin: "4px 0 0" }}>
-        {fieldErrors[field]}
-      </p>
-    ) : null;
-
   return (
     <div style={{ minHeight: "100vh", background: "transparent" }}>
       <Navbar />
@@ -360,238 +290,33 @@ export default function Checkout() {
                 Payment Method
               </h2>
               <div
-                style={{ display: "flex", flexDirection: "column", gap: 10 }}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 12,
+                  padding: 14,
+                  border: "1px solid #FF5A36",
+                  borderRadius: 8,
+                  background: "#fff7ed",
+                }}
               >
-                {[
-                  { id: "credit-card", label: "Credit Card" },
-                  { id: "gcash", label: "GCash" },
-                  { id: "cod", label: "Cash on Delivery" },
-                ].map((opt) => (
-                  <label
-                    key={opt.id}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 12,
-                      padding: 14,
-                      border: `1px solid ${
-                        paymentMethod === opt.id ? "#FF5A36" : "#e5e7eb"
-                      }`,
-                      borderRadius: 8,
-                      cursor: "pointer",
-                      background: paymentMethod === opt.id ? "#eff6ff" : "#fff",
-                      transition: "all 0.15s",
-                    }}
-                  >
-                    <input
-                      type="radio"
-                      name="payment_method"
-                      value={opt.id}
-                      checked={paymentMethod === opt.id}
-                      onChange={() => {
-                        setPaymentMethod(opt.id);
-                        setFieldErrors((prev) => {
-                          const next = { ...prev };
-                          delete next.cardNumber;
-                          delete next.expiry;
-                          delete next.cvv;
-                          delete next.gcashPhone;
-                          return next;
-                        });
-                      }}
-                      style={{ accentColor: "#FF5A36" }}
-                    />
-                    <PaymentIcon
-                      kind={opt.id}
-                      color={paymentMethod === opt.id ? "#FF5A36" : "#374151"}
-                    />
-                    <span
-                      style={{
-                        fontSize: 14,
-                        fontWeight: 500,
-                        color: "#374151",
-                      }}
-                    >
-                      {opt.label}
-                    </span>
-                  </label>
-                ))}
+                <PaymentIcon kind="cod" color="#FF5A36" />
+                <span style={{ fontSize: 14, fontWeight: 500, color: "#374151" }}>
+                  Cash on Delivery
+                </span>
               </div>
-
-              {/* ── Conditional payment detail fields ──────────────────────── */}
-              {paymentMethod === "credit-card" && (
-                <div
-                  style={{
-                    marginTop: 20,
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 14,
-                  }}
-                >
-                  <div>
-                    <label
-                      style={{
-                        display: "block",
-                        fontSize: 13,
-                        fontWeight: 500,
-                        marginBottom: 6,
-                        color: "#374151",
-                      }}
-                    >
-                      Card Number
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="1234 5678 9012 3456"
-                      maxLength={19}
-                      value={cardDetails.number}
-                      onChange={(e) => {
-                        // Auto-format: add space every 4 digits
-                        const raw = e.target.value
-                          .replace(/\D/g, "")
-                          .slice(0, 16);
-                        const formatted =
-                          raw.match(/.{1,4}/g)?.join(" ") ?? raw;
-                        setCardDetails((prev) => ({
-                          ...prev,
-                          number: formatted,
-                        }));
-                        setFieldErrors((prev) => ({
-                          ...prev,
-                          cardNumber: undefined,
-                        }));
-                      }}
-                      className={inputClass}
-                      style={inputStyle("cardNumber")}
-                    />
-                    {fieldError("cardNumber")}
-                  </div>
-                  <div
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: "1fr 1fr",
-                      gap: 12,
-                    }}
-                  >
-                    <div>
-                      <label
-                        style={{
-                          display: "block",
-                          fontSize: 13,
-                          fontWeight: 500,
-                          marginBottom: 6,
-                          color: "#374151",
-                        }}
-                      >
-                        Expiry (MM/YY)
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="08/27"
-                        maxLength={5}
-                        value={cardDetails.expiry}
-                        onChange={(e) => {
-                          // Auto-insert slash after MM
-                          let val = e.target.value
-                            .replace(/\D/g, "")
-                            .slice(0, 4);
-                          if (val.length >= 3)
-                            val = val.slice(0, 2) + "/" + val.slice(2);
-                          setCardDetails((prev) => ({ ...prev, expiry: val }));
-                          setFieldErrors((prev) => ({
-                            ...prev,
-                            expiry: undefined,
-                          }));
-                        }}
-                        className={inputClass}
-                        style={inputStyle("expiry")}
-                      />
-                      {fieldError("expiry")}
-                    </div>
-                    <div>
-                      <label
-                        style={{
-                          display: "block",
-                          fontSize: 13,
-                          fontWeight: 500,
-                          marginBottom: 6,
-                          color: "#374151",
-                        }}
-                      >
-                        CVV
-                      </label>
-                      <input
-                        type="password"
-                        placeholder="•••"
-                        maxLength={4}
-                        value={cardDetails.cvv}
-                        onChange={(e) => {
-                          setCardDetails((prev) => ({
-                            ...prev,
-                            cvv: e.target.value.replace(/\D/g, "").slice(0, 4),
-                          }));
-                          setFieldErrors((prev) => ({
-                            ...prev,
-                            cvv: undefined,
-                          }));
-                        }}
-                        className={inputClass}
-                        style={inputStyle("cvv")}
-                      />
-                      {fieldError("cvv")}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {paymentMethod === "gcash" && (
-                <div style={{ marginTop: 20 }}>
-                  <label
-                    style={{
-                      display: "block",
-                      fontSize: 13,
-                      fontWeight: 500,
-                      marginBottom: 6,
-                      color: "#374151",
-                    }}
-                  >
-                    GCash Mobile Number
-                  </label>
-                  <input
-                    type="tel"
-                    placeholder="09XXXXXXXXX"
-                    maxLength={11}
-                    value={gcashPhone}
-                    onChange={(e) => {
-                      setGcashPhone(
-                        e.target.value.replace(/\D/g, "").slice(0, 11),
-                      );
-                      setFieldErrors((prev) => ({
-                        ...prev,
-                        gcashPhone: undefined,
-                      }));
-                    }}
-                    className={inputClass}
-                    style={inputStyle("gcashPhone")}
-                  />
-                  {fieldError("gcashPhone")}
-                </div>
-              )}
-
-              {paymentMethod === "cod" && (
-                <p
-                  style={{
-                    marginTop: 16,
-                    fontSize: 13,
-                    color: "#6b7280",
-                    background: "#f3f4f6",
-                    borderRadius: 8,
-                    padding: "10px 14px",
-                  }}
-                >
-                  Pay in cash when your order arrives. No details needed.
-                </p>
-              )}
+              <p
+                style={{
+                  marginTop: 16,
+                  fontSize: 13,
+                  color: "#6b7280",
+                  background: "#f3f4f6",
+                  borderRadius: 8,
+                  padding: "10px 14px",
+                }}
+              >
+                Pay in cash when your order arrives.
+              </p>
             </div>
           </div>
 
