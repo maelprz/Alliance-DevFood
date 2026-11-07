@@ -262,6 +262,7 @@ namespace DevFood.Api.Migrations
                         .HasColumnName("discount_amount");
 
                     b.Property<string>("Status")
+                        .IsConcurrencyToken()
                         .IsRequired()
                         .HasColumnType("text")
                         .HasColumnName("status");

@@ -196,6 +196,14 @@ public class OrdersController(AppDbContext db, IConfiguration config) : Controll
                 return BadRequest(new { message = "Only the customer can cancel an order." });
             if (order.Status == "Cancelled" || order.Status == "Delivered")
                 return BadRequest(new { message = "Completed or cancelled orders cannot be changed." });
+
+            var nextStatus = "";
+            if (order.Status == "Pending") nextStatus = "Preparing";
+            if (order.Status == "Preparing") nextStatus = "Ready";
+            if (order.Status == "Ready") nextStatus = "Delivered";
+
+            if (status != order.Status && status != nextStatus)
+                return BadRequest(new { message = "Orders must follow Pending, Preparing, Ready, then Delivered." });
         }
 
         if (status != order.Status)
@@ -216,7 +224,14 @@ public class OrdersController(AppDbContext db, IConfiguration config) : Controll
                     Message = $"Your order #{order.Id} is now {status}.",
                     Audience = "user"
                 });
-            await db.SaveChangesAsync();
+            try
+            {
+                await db.SaveChangesAsync();
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                return Conflict(new { message = "The order status changed. Refresh and try again." });
+            }
         }
         return Ok(ToDto(order));
     }

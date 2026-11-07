@@ -15,7 +15,11 @@ public class AdminStatisticsController(AppDbContext db) : ControllerBase
             .AsNoTracking()
             .ToListAsync();
 
-        var revenueData = orders
+        var paidOrders = orders
+            .Where(order => order.Status == "Delivered" && order.Payment != null && order.Payment.Status == "Paid")
+            .ToList();
+
+        var revenueData = paidOrders
             .GroupBy(order => order.CreatedAt.Date)
             .OrderBy(group => group.Key)
             .Select(group => new
@@ -37,7 +41,7 @@ public class AdminStatisticsController(AppDbContext db) : ControllerBase
         return Ok(new
         {
             totalOrders = orders.Count,
-            totalRevenue = orders.Sum(order => order.TotalAmount),
+            totalRevenue = paidOrders.Sum(order => order.TotalAmount),
             deliveredOrders = orders.Count(order => order.Status == "Delivered"),
             pendingOrders = orders.Count(order => order.Status == "Pending"),
             revenueData,

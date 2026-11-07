@@ -28,6 +28,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 
         b.Entity<Order>(o =>
         {
+            o.Property(order => order.Status).IsConcurrencyToken();
             o.Property(x => x.Subtotal).HasPrecision(10, 2);
             o.Property(x => x.DeliveryFee).HasPrecision(10, 2);
             o.Property(x => x.DiscountAmount).HasPrecision(10, 2);

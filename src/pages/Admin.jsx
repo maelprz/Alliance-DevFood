@@ -678,17 +678,10 @@ export default function Admin() {
                                 outline: "none",
                               }}
                             >
-                              {order.status === "Cancelled" && <option value="Cancelled">Cancelled</option>}
-                              {[
-                                "Pending",
-                                "Preparing",
-                                "Ready",
-                                "Delivered",
-                              ].map((s) => (
-                                <option key={s} value={s}>
-                                  {s}
-                                </option>
-                              ))}
+                              <option value={order.status}>{order.status}</option>
+                              {order.status === "Pending" && <option value="Preparing">Preparing</option>}
+                              {order.status === "Preparing" && <option value="Ready">Ready</option>}
+                              {order.status === "Ready" && <option value="Delivered">Delivered</option>}
                             </select>
                           </td>
                         </tr>

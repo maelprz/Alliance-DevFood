@@ -59,9 +59,11 @@ export default function NotificationManager() {
           couponCode: form.couponCode.trim() || undefined,
         }),
       });
-      if (!res.ok) {
-        setMessage("Failed to send notification.");
-        setTimeout(() => setMessage(""), 2000);
+      if (res.ok === false) {
+        const data = await res.json().catch(() => ({}));
+        let errorText = "Failed to send notification. Please try again.";
+        if (data.message) errorText = "Failed to send notification: " + data.message;
+        setMessage(errorText);
         return;
       }
       setForm({ title: "", body: "", couponCode: "" });
@@ -82,12 +84,16 @@ export default function NotificationManager() {
         headers: authHeaders("admin"),
       });
       if (response.ok === false) {
-        setMessage("Failed to delete notification. Please check your admin login.");
+        const data = await response.json().catch(() => ({}));
+        let errorText = "Failed to delete notification. Please try again.";
+        if (data.message) errorText = "Failed to delete notification: " + data.message;
+        setMessage(errorText);
         return;
       }
       fetchHistory();
     } catch (err) {
       console.error(err);
+      setMessage("Network error. Could not delete notification.");
     }
   }
 

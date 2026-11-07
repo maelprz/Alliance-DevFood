@@ -14,6 +14,12 @@ public record MenuWrite(
 [Route("api/menu")]
 public class MenuController(AppDbContext db) : ControllerBase
 {
+    private static readonly string[] Categories =
+    [
+        "Burger", "Sandwich", "Chicken", "Pizzas", "Rice Meals",
+        "Snacks", "Spaghetti", "Dessert", "Drinks"
+    ];
+
     private static object ToDto(MenuItem item)
     {
         return new
@@ -81,6 +87,11 @@ public class MenuController(AppDbContext db) : ControllerBase
             return BadRequest(new { message = "Category is required." });
         }
 
+        if (Categories.Contains(request.Category.Trim()) == false)
+        {
+            return BadRequest(new { message = "Please choose a valid category." });
+        }
+
         if (request.Price.HasValue == false)
         {
             return BadRequest(new { message = "Price is required." });
@@ -141,6 +152,11 @@ public class MenuController(AppDbContext db) : ControllerBase
             if (string.IsNullOrWhiteSpace(request.Category))
             {
                 return BadRequest(new { message = "Category cannot be empty." });
+            }
+
+            if (Categories.Contains(request.Category.Trim()) == false)
+            {
+                return BadRequest(new { message = "Please choose a valid category." });
             }
 
             item.Category = request.Category.Trim();
