@@ -304,6 +304,21 @@ export default function Admin() {
       if (data.message) {
         throw new Error(data.message);
       }
+      if (data.detail) {
+        throw new Error(data.detail);
+      }
+      if (data.title) {
+        throw new Error(data.title);
+      }
+      if (data.errors) {
+        const validationMessages = Object.values(data.errors).flat();
+        if (validationMessages.length > 0) {
+          throw new Error(validationMessages.join(" "));
+        }
+      }
+      if (response.status) {
+        throw new Error(`Menu request failed (${response.status}${response.statusText ? ` ${response.statusText}` : ""}).`);
+      }
       throw new Error("The menu request failed. Please try again.");
     }
 
@@ -335,17 +350,17 @@ export default function Admin() {
       return;
     }
 
-    if (image !== null) {
-      setMenuNotice({ type: "error", text: "Photo uploads are not available yet. Please save without selecting a photo." });
+    if (image && image.size > 5 * 1024 * 1024) {
+      setMenuNotice({ type: "error", text: "Please choose an image smaller than 5 MB." });
       return;
     }
 
-    const item = {
-      name: formData.name.trim(),
-      price,
-      category: formData.category,
-      description: formData.description.trim(),
-    };
+    const item = new FormData();
+    item.append("Name", formData.name.trim());
+    item.append("Price", String(price));
+    item.append("Category", formData.category);
+    item.append("Description", formData.description.trim());
+    if (image) item.append("imageFile", image);
 
     setMenuSaving(true);
 
@@ -363,10 +378,9 @@ export default function Admin() {
       const response = await fetch(url, {
         method,
         headers: {
-          "Content-Type": "application/json",
           ...authHeaders("admin"),
         },
-        body: JSON.stringify(item),
+        body: item,
       });
       const savedItem = await readMenuResponse(response);
 
