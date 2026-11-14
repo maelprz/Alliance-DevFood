@@ -10,6 +10,7 @@ builder.Services.AddDbContext<AppDbContext>(o =>
 
 builder.Services.AddSingleton<TokenService>();
 builder.Services.AddSingleton<EmailSender>();
+builder.Services.AddHttpClient<SupabaseStorageService>();
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer();
 builder.Services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme)
@@ -73,6 +74,7 @@ if (app.Environment.IsDevelopment())
 
 // app.UseHttpsRedirection();   // off in development so the Vite proxy (http) works
 
+app.UseStaticFiles();
 app.UseAuthentication();
 app.UseAuthorization();
 

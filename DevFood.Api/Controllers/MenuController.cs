@@ -12,8 +12,14 @@ public record MenuWrite(
 
 [ApiController]
 [Route("api/menu")]
-public class MenuController(AppDbContext db) : ControllerBase
+public class MenuController(AppDbContext db, SupabaseStorageService storage) : ControllerBase
 {
+    private const long MaxImageSize = 5 * 1024 * 1024;
+    private static readonly HashSet<string> AllowedImageTypes = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "image/jpeg", "image/png", "image/gif", "image/webp"
+    };
+
     private static readonly string[] Categories =
     [
         "Burger", "Sandwich", "Chicken", "Pizzas", "Rice Meals",
@@ -75,7 +81,8 @@ public class MenuController(AppDbContext db) : ControllerBase
 
     [Authorize(Roles = "admin")]
     [HttpPost]
-    public async Task<IActionResult> Create(MenuWrite request)
+    [RequestSizeLimit(MaxImageSize + 64 * 1024)]
+    public async Task<IActionResult> Create([FromForm] MenuWrite request, [FromForm] IFormFile? imageFile)
     {
         if (string.IsNullOrWhiteSpace(request.Name))
         {
@@ -112,13 +119,31 @@ public class MenuController(AppDbContext db) : ControllerBase
             return BadRequest(new { message = "Price must be between 0 and 9999." });
         }
 
+        string? imageUrl;
+        try
+        {
+            imageUrl = await SaveImage(imageFile, HttpContext.RequestAborted);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return StatusCode(StatusCodes.Status503ServiceUnavailable, new { message = ex.Message });
+        }
+        catch (HttpRequestException ex)
+        {
+            return StatusCode(StatusCodes.Status502BadGateway, new { message = ex.Message });
+        }
+        if (imageFile is not null && imageUrl is null)
+        {
+            return BadRequest(new { message = "Please upload a JPG, PNG, GIF, or WebP image under 5 MB." });
+        }
+
         var item = new MenuItem
         {
             Name = request.Name.Trim(),
             Price = request.Price.Value,
             Category = request.Category.Trim(),
             Description = "",
-            ImageUrl = request.Image,
+            ImageUrl = imageUrl ?? request.Image,
             IsAvailable = true
         };
 
@@ -139,7 +164,8 @@ public class MenuController(AppDbContext db) : ControllerBase
 
     [Authorize(Roles = "admin")]
     [HttpPatch("{id:int}")]
-    public async Task<IActionResult> Patch(int id, MenuWrite request)
+    [RequestSizeLimit(MaxImageSize + 64 * 1024)]
+    public async Task<IActionResult> Patch(int id, [FromForm] MenuWrite request, [FromForm] IFormFile? imageFile)
     {
         var item = await db.MenuItems.FindAsync(id);
         if (item is null)
@@ -197,7 +223,29 @@ public class MenuController(AppDbContext db) : ControllerBase
             item.Description = request.Description.Trim();
         }
 
-        if (request.Image is not null)
+        string? uploadedImageUrl;
+        try
+        {
+            uploadedImageUrl = await SaveImage(imageFile, HttpContext.RequestAborted);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return StatusCode(StatusCodes.Status503ServiceUnavailable, new { message = ex.Message });
+        }
+        catch (HttpRequestException ex)
+        {
+            return StatusCode(StatusCodes.Status502BadGateway, new { message = ex.Message });
+        }
+        if (imageFile is not null && uploadedImageUrl is null)
+        {
+            return BadRequest(new { message = "Please upload a JPG, PNG, GIF, or WebP image under 5 MB." });
+        }
+
+        if (uploadedImageUrl is not null)
+        {
+            item.ImageUrl = uploadedImageUrl;
+        }
+        else if (request.Image is not null)
         {
             item.ImageUrl = request.Image;
         }
@@ -225,5 +273,30 @@ public class MenuController(AppDbContext db) : ControllerBase
         item.IsAvailable = false;
         await db.SaveChangesAsync();
         return Ok(new { message = "Menu item deleted." });
+    }
+
+    private async Task<string?> SaveImage(IFormFile? imageFile, CancellationToken cancellationToken)
+    {
+        if (imageFile is null || imageFile.Length == 0)
+        {
+            return null;
+        }
+
+        if (imageFile.Length > MaxImageSize || AllowedImageTypes.Contains(imageFile.ContentType) == false)
+        {
+            return null;
+        }
+
+        var extension = imageFile.ContentType.ToLowerInvariant() switch
+        {
+            "image/jpeg" => ".jpg",
+            "image/png" => ".png",
+            "image/gif" => ".gif",
+            "image/webp" => ".webp",
+            _ => null
+        };
+        if (extension is null) return null;
+
+        return await storage.UploadMenuImageAsync(imageFile, extension, cancellationToken);
     }
 }
