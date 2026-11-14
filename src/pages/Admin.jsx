@@ -53,6 +53,12 @@ export default function Admin() {
   const [image, setImage] = useState(null);
   const [preview, setPreview] = useState(null);
   const [orderError, setOrderError] = useState("");
+  const [selectedOrders, setSelectedOrders] = useState([]);
+  const [showOrderDeleteConfirm, setShowOrderDeleteConfirm] = useState(false);
+  const [orderDeleting, setOrderDeleting] = useState(false);
+  const [ordersRefresh, setOrdersRefresh] = useState(0);
+  const [pendingStatus, setPendingStatus] = useState(null);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [filteredMenuItems, setFilteredMenuItems] = useState([]);
@@ -125,7 +131,7 @@ export default function Admin() {
       active = false;
       clearInterval(interval);
     };
-  }, [orderPage, search, statusFilter]);
+  }, [orderPage, search, statusFilter, ordersRefresh]);
 
   useEffect(() => {
     const fetchUsers = async () => {
@@ -166,6 +172,32 @@ export default function Admin() {
       );
     } catch {
       setOrderError("Could not connect to the server. Please try again.");
+    }
+  };
+
+  const handleDeleteSelected = async () => {
+    setOrderError("");
+    setOrderDeleting(true);
+    try {
+      const response = await fetch("/api/admin/orders/hide", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...authHeaders("admin") },
+        body: JSON.stringify(selectedOrders),
+      });
+      const data = await response.json();
+      if (response.ok === false) {
+        setOrderError(data.message || "Could not remove the selected orders.");
+        setShowOrderDeleteConfirm(false);
+        return;
+      }
+      setSelectedOrders([]);
+      setShowOrderDeleteConfirm(false);
+      setOrdersRefresh((value) => value + 1);
+    } catch {
+      setOrderError("Could not connect to the server.");
+      setShowOrderDeleteConfirm(false);
+    } finally {
+      setOrderDeleting(false);
     }
   };
 
@@ -287,9 +319,19 @@ export default function Admin() {
       return;
     }
 
+    if (formData.name.trim().length > 100) {
+      setMenuNotice({ type: "error", text: "Name cannot exceed 100 characters." });
+      return;
+    }
+
+    if (formData.description.trim().length === 0) {
+      setMenuNotice({ type: "error", text: "Please enter a description." });
+      return;
+    }
+
     const price = Number(formData.price);
-    if (Number.isFinite(price) === false || price < 0 || price > 99999999.99) {
-      setMenuNotice({ type: "error", text: "Please enter a valid price between 0 and 99,999,999.99." });
+    if (formData.price === "" || Number.isFinite(price) === false || price < 0 || price > 9999) {
+      setMenuNotice({ type: "error", text: "Please enter a price between 0 and 9,999." });
       return;
     }
 
@@ -446,7 +488,7 @@ export default function Admin() {
             Logged in as {adminUser?.name ?? "Admin"}
           </p>
           <button
-            onClick={handleLogout}
+            onClick={() => setShowLogoutConfirm(true)}
             style={{ ...navBtnStyle(false), color: "#6b7280", fontSize: 13 }}
           >
             Logout
@@ -519,6 +561,16 @@ export default function Admin() {
                   <option value="Cancelled">Cancelled</option>
                 </select>
 
+                {selectedOrders.length > 0 && (
+                  <button type="button" onClick={() => setShowOrderDeleteConfirm(true)} style={{
+                    padding: "10px 16px", border: "1px solid #fecaca", borderRadius: 8,
+                    background: "#fef2f2", color: "#b91c1c", fontWeight: 600,
+                    fontSize: 14, cursor: "pointer", fontFamily: "inherit",
+                  }}>
+                    Delete Selected ({selectedOrders.length})
+                  </button>
+                )}
+
 
               </div>
 
@@ -559,6 +611,7 @@ export default function Admin() {
                         }}
                       >
                         {[
+                          "Select",
                           "Order ID",
                           "Customer",
                           "Address",
@@ -590,7 +643,21 @@ export default function Admin() {
                           key={order.order_id}
                           style={{ borderBottom: "1px solid #f3f4f6" }}
                         >
-
+                          <td style={{ padding: "14px 20px" }}>
+                            <input
+                              type="checkbox"
+                              aria-label={"Select order " + order.order_id}
+                              disabled={order.status !== "Cancelled"}
+                              checked={selectedOrders.includes(order.order_id)}
+                              onChange={(event) => {
+                                if (event.target.checked) {
+                                  setSelectedOrders((previous) => [...previous, order.order_id]);
+                                } else {
+                                  setSelectedOrders((previous) => previous.filter((id) => id !== order.order_id));
+                                }
+                              }}
+                            />
+                          </td>
                           <td
                             style={{
                               padding: "14px 20px",
@@ -660,10 +727,11 @@ export default function Admin() {
                               value={order.status}
                               disabled={order.status === "Cancelled" || order.status === "Delivered"}
                               onChange={(e) =>
-                                handleStatusChange(
-                                  order.order_id,
-                                  e.target.value
-                                )
+                                setPendingStatus({
+                                  orderId: order.order_id,
+                                  oldStatus: order.status,
+                                  newStatus: e.target.value,
+                                })
                               }
                               style={{
                                 padding: "6px 10px",
@@ -796,13 +864,19 @@ export default function Admin() {
 
               {/* Add / Edit form */}
               {showAddForm && (
+                <div role="dialog" aria-modal="true" aria-label="Menu item form" style={{
+                  position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)",
+                  display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999,
+                }}>
                 <div
                   style={{
                     background: "#fff",
                     borderRadius: 12,
                     border: "1px solid #e5e7eb",
                     padding: 24,
-                    marginBottom: 20,
+                    width: "min(600px, 90vw)",
+                    maxHeight: "90vh",
+                    overflowY: "auto",
                   }}
                 >
                   <h2
@@ -814,6 +888,9 @@ export default function Admin() {
                   >
                     {editingItem ? "Edit Menu Item" : "Add New Menu Item"}
                   </h2>
+                  {menuNotice && menuNotice.type === "error" && (
+                    <p role="alert" style={{ color: "#991b1b" }}>{menuNotice.text}</p>
+                  )}
                   <form onSubmit={handleSubmitItem}>
                     <div
                       style={{
@@ -838,6 +915,7 @@ export default function Admin() {
                         <input
                           required
                           type="text"
+                          maxLength={100}
                           placeholder="Adobo Rice Bowl"
                           value={formData.name}
                           onChange={(e) =>
@@ -862,6 +940,7 @@ export default function Admin() {
                           required
                           type="number"
                           min="0"
+                          max="9999"
                           step="0.01"
                           placeholder="185.00"
                           value={formData.price}
@@ -885,6 +964,7 @@ export default function Admin() {
                         Description
                       </label>
                       <input
+                        required
                         type="text"
                         placeholder="Brief description..."
                         value={formData.description}
@@ -1015,6 +1095,7 @@ export default function Admin() {
                       </button>
                     </div>
                   </form>
+                </div>
                 </div>
               )}
 
@@ -1246,6 +1327,64 @@ export default function Admin() {
           {activeView === "users" && ( <UserManager/> )}
 
   
+          {showOrderDeleteConfirm && (
+            <div role="dialog" aria-modal="true" aria-label="Confirm order deletion" style={{
+              position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)",
+              display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999,
+            }}>
+              <div style={{ background: "#fff", padding: 24, borderRadius: 14, width: "min(400px, 90vw)" }}>
+                <p>Remove {selectedOrders.length} selected order(s) from the admin list?</p>
+                <p>Only cancelled orders can be removed. They remain in the database and customer history.</p>
+                <div style={{ display: "flex", justifyContent: "flex-end", gap: 12, marginTop: 24 }}>
+                  <button type="button" onClick={() => setShowOrderDeleteConfirm(false)} disabled={orderDeleting} style={{
+                    padding: "10px 18px", border: "1px solid #d1d5db", borderRadius: 8,
+                    background: "#fff", color: "#374151", fontSize: 14,
+                    fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
+                  }}>
+                    Cancel
+                  </button>
+                  <button type="button" onClick={handleDeleteSelected} disabled={orderDeleting} style={{
+                    padding: "10px 18px", border: "1px solid #dc2626", borderRadius: 8,
+                    background: "#dc2626", color: "#fff", fontSize: 14,
+                    fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
+                  }}>
+                    {orderDeleting && "Removing..."}
+                    {orderDeleting === false && "Remove orders"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {pendingStatus !== null && (
+            <div role="dialog" aria-modal="true" aria-label="Confirm order status" style={{
+              position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)",
+              display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999,
+            }}>
+              <div style={{ background: "#fff", padding: 24, borderRadius: 14, width: "min(360px, 90vw)" }}>
+                <p>Change order #{pendingStatus.orderId} from {pendingStatus.oldStatus} to {pendingStatus.newStatus}?</p>
+                <button type="button" onClick={() => {
+                  handleStatusChange(pendingStatus.orderId, pendingStatus.newStatus);
+                  setPendingStatus(null);
+                }}>Confirm</button>
+                <button type="button" onClick={() => setPendingStatus(null)} style={{ marginLeft: 10 }}>Cancel</button>
+              </div>
+            </div>
+          )}
+
+          {showLogoutConfirm && (
+            <div role="dialog" aria-modal="true" aria-label="Confirm logout" style={{
+              position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)",
+              display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999,
+            }}>
+              <div style={{ background: "#fff", padding: 24, borderRadius: 14, width: "min(360px, 90vw)" }}>
+                <p>Are you sure you want to log out?</p>
+                <button type="button" onClick={handleLogout}>Log out</button>
+                <button type="button" onClick={() => setShowLogoutConfirm(false)} style={{ marginLeft: 10 }}>Cancel</button>
+              </div>
+            </div>
+          )}
+
           {showDeleteModal && (
             <div style={{
               position: "fixed",

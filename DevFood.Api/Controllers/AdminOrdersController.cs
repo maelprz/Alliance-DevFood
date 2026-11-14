@@ -11,7 +11,7 @@ public class AdminOrdersController(AppDbContext db) : ControllerBase
     public async Task<IActionResult> Get([FromQuery] int page = 1, [FromQuery] string? search = null, [FromQuery] string status = "All")
     {
         const int pageSize = 10;
-        var query = db.Orders.AsNoTracking().AsQueryable();
+        var query = db.Orders.AsNoTracking().Where(order => order.IsHiddenFromAdmin == false);
 
         if (status != "All")
             query = query.Where(order => order.Status == status);
@@ -42,6 +42,39 @@ public class AdminOrdersController(AppDbContext db) : ControllerBase
             page = currentPage,
             totalPages
         });
+    }
+    [HttpPost("hide")]
+    public async Task<IActionResult> HideOrders([FromBody] List<int> orderIds)
+    {
+        if (orderIds == null || orderIds.Count == 0)
+            return BadRequest(new { message = "Select at least one order." });
+
+        var ids = orderIds.Distinct().ToList();
+        var orders = await db.Orders
+            .Where(order => ids.Contains(order.Id) && order.IsHiddenFromAdmin == false)
+            .ToListAsync();
+
+        if (orders.Count != ids.Count)
+            return NotFound(new { message = "One or more orders could not be found. Refresh and try again." });
+
+        if (orders.Any(order => order.Status != "Cancelled"))
+            return BadRequest(new { message = "Only cancelled orders can be removed from the admin list." });
+
+        foreach (var order in orders)
+        {
+            order.IsHiddenFromAdmin = true;
+        }
+
+        try
+        {
+            await db.SaveChangesAsync();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return Conflict(new { message = "An order changed. Refresh and try again." });
+        }
+
+        return Ok(new { message = "Selected orders removed from the admin list." });
     }
 }
 

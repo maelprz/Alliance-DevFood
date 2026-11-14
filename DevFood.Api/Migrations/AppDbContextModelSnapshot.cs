@@ -238,6 +238,10 @@ namespace DevFood.Api.Migrations
                         .HasColumnType("text")
                         .HasColumnName("customer_name");
 
+                    b.Property<DateTime?>("DeliveredAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("delivered_at");
+
                     b.Property<string>("DeliveryAddress")
                         .IsRequired()
                         .HasColumnType("text")
@@ -260,6 +264,10 @@ namespace DevFood.Api.Migrations
                         .HasPrecision(10, 2)
                         .HasColumnType("numeric(10,2)")
                         .HasColumnName("discount_amount");
+
+                    b.Property<bool>("IsHiddenFromAdmin")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_hidden_from_admin");
 
                     b.Property<string>("Status")
                         .IsConcurrencyToken()

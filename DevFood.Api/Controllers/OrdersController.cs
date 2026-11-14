@@ -209,6 +209,10 @@ public class OrdersController(AppDbContext db, IConfiguration config) : Controll
         if (status != order.Status)
         {
             order.Status = status;
+            if (status == "Delivered")
+            {
+                order.DeliveredAt = DateTime.UtcNow;
+            }
             // Cash on Delivery: the rider collects on delivery; a cancelled order is never paid.
             if (order.Payment is { } payment)
             {

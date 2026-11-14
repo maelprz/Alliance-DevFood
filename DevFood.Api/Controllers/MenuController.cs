@@ -82,6 +82,16 @@ public class MenuController(AppDbContext db) : ControllerBase
             return BadRequest(new { message = "Name is required." });
         }
 
+        if (request.Name.Trim().Length > 100)
+        {
+            return BadRequest(new { message = "Name cannot exceed 100 characters." });
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Description))
+        {
+            return BadRequest(new { message = "Description is required." });
+        }
+
         if (string.IsNullOrWhiteSpace(request.Category))
         {
             return BadRequest(new { message = "Category is required." });
@@ -97,9 +107,9 @@ public class MenuController(AppDbContext db) : ControllerBase
             return BadRequest(new { message = "Price is required." });
         }
 
-        if (request.Price.Value < 0 || request.Price.Value > 99999999.99m)
+        if (request.Price.Value < 0 || request.Price.Value > 9999m)
         {
-            return BadRequest(new { message = "Price must be between 0 and 99999999.99." });
+            return BadRequest(new { message = "Price must be between 0 and 9999." });
         }
 
         var item = new MenuItem
@@ -144,6 +154,11 @@ public class MenuController(AppDbContext db) : ControllerBase
                 return BadRequest(new { message = "Name cannot be empty." });
             }
 
+            if (request.Name.Trim().Length > 100)
+            {
+                return BadRequest(new { message = "Name cannot exceed 100 characters." });
+            }
+
             item.Name = request.Name.Trim();
         }
 
@@ -164,9 +179,9 @@ public class MenuController(AppDbContext db) : ControllerBase
 
         if (request.Price.HasValue)
         {
-            if (request.Price.Value < 0 || request.Price.Value > 99999999.99m)
+            if (request.Price.Value < 0 || request.Price.Value > 9999m)
             {
-                return BadRequest(new { message = "Price must be between 0 and 99999999.99." });
+                return BadRequest(new { message = "Price must be between 0 and 9999." });
             }
 
             item.Price = request.Price.Value;
@@ -174,6 +189,11 @@ public class MenuController(AppDbContext db) : ControllerBase
 
         if (request.Description is not null)
         {
+            if (string.IsNullOrWhiteSpace(request.Description))
+            {
+                return BadRequest(new { message = "Description cannot be empty." });
+            }
+
             item.Description = request.Description.Trim();
         }
 

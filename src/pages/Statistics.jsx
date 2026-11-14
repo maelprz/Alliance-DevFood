@@ -189,6 +189,7 @@ export default function Statistics() {
         }}
       >
         <h3 style={{ marginBottom: 20 }}>Revenue Tracking</h3>
+        <p>Shown by Philippine delivery date. Older orders without a delivery date use their order date.</p>
 
         <ResponsiveContainer>
           <LineChart data={revenueData}>
@@ -218,7 +219,7 @@ export default function Statistics() {
           padding: 20,
         }}
       >
-        <h3 style={{ marginBottom: 20 }}>Most Ordered Food Items</h3>
+        <h3 style={{ marginBottom: 20 }}>Best-Selling Items</h3>
 
         <ResponsiveContainer>
           <BarChart data={foodData}>

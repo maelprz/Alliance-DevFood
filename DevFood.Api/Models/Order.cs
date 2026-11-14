@@ -5,6 +5,7 @@ public class Order
     public User User { get; set; } = null!;
     public string CustomerName { get; set; } = "";
     public string Status { get; set; } = "Pending";
+    public bool IsHiddenFromAdmin { get; set; }
     public decimal Subtotal { get; set; }
     public decimal DeliveryFee { get; set; }
     public string? CouponCode { get; set; }
@@ -15,6 +16,7 @@ public class Order
     public double? DeliveryLat { get; set; }
     public double? DeliveryLng { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime? DeliveredAt { get; set; }
     public List<OrderItem> Items { get; set; } = [];
     public Payment? Payment { get; set; }
 }
