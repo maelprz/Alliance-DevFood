@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -10,7 +11,6 @@ builder.Services.AddDbContext<AppDbContext>(o =>
 
 builder.Services.AddSingleton<TokenService>();
 builder.Services.AddSingleton<EmailSender>();
-builder.Services.AddHttpClient<SupabaseStorageService>();
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer();
 builder.Services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme)
@@ -31,19 +31,37 @@ builder.Services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationSc
         {
             // A valid signature isn't enough: reject logged-out tokens, deactivated
             // users, and sessions older than the user's last password reset.
+            // RBAC: the role and its permissions come from the database on every request,
+            // so changing a user's role (or a role's permissions) applies immediately.
             OnTokenValidated = async ctx =>
             {
                 var db = ctx.HttpContext.RequestServices.GetRequiredService<AppDbContext>();
                 var userId = ctx.Principal?.UserId();
                 var jti = ctx.Principal?.FindFirst("jti")?.Value;
+                // One round trip: account state, logout check, and the role's permissions.
                 var user = await db.Users.AsNoTracking()
                     .Where(u => u.Id == userId)
-                    .Select(u => new { u.IsActive, u.SessionsValidAfter })
+                    .Select(u => new
+                    {
+                        u.IsActive,
+                        u.SessionsValidAfter,
+                        u.Role,
+                        Revoked = db.RevokedTokens.Any(r => r.Jti == jti),
+                        Permissions = db.RolePermissions.Where(rp => rp.RoleName == u.Role).Select(rp => rp.PermissionName).ToList()
+                    })
                     .FirstOrDefaultAsync();
-                if (user is null || !user.IsActive
-                    || (user.SessionsValidAfter is { } after && ctx.SecurityToken.ValidFrom < after)
-                    || await db.RevokedTokens.AnyAsync(r => r.Jti == jti))
+                if (user is null || !user.IsActive || user.Revoked
+                    || (user.SessionsValidAfter is { } after && ctx.SecurityToken.ValidFrom < after))
+                {
                     ctx.Fail("Session is no longer valid.");
+                    return;
+                }
+
+                var identity = (ClaimsIdentity)ctx.Principal!.Identity!;
+                foreach (var stale in identity.FindAll("role").ToList()) identity.RemoveClaim(stale);
+                identity.AddClaim(new Claim("role", user.Role));
+                foreach (var permission in user.Permissions)
+                    identity.AddClaim(new Claim(Permissions.ClaimType, permission));
             },
             OnChallenge = async ctx =>
             {
@@ -58,7 +76,12 @@ builder.Services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationSc
             }
         };
     });
-builder.Services.AddAuthorization();
+// One policy per permission, e.g. [Authorize(Policy = Permissions.UsersView)].
+builder.Services.AddAuthorization(o =>
+{
+    foreach (var permission in Permissions.All)
+        o.AddPolicy(permission, p => p.RequireClaim(Permissions.ClaimType, permission));
+});
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();

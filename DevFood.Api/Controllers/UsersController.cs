@@ -1,3 +1,5 @@
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -37,9 +39,17 @@ public class UsersController(AppDbContext db) : ControllerBase
         createdAt = u.CreatedAt
     };
 
+    // The logged-in user plus the permissions their role grants (login and /api/auth/me).
+    public static JsonObject ToSessionDto(User u, IEnumerable<string> permissions)
+    {
+        var dto = JsonSerializer.SerializeToNode(ToDto(u))!.AsObject();
+        dto["permissions"] = new JsonArray(permissions.Select(p => (JsonNode?)JsonValue.Create(p)).ToArray());
+        return dto;
+    }
+
     // Admin list of registered users. Without ?page it returns everyone; with ?page it
     // returns one page and puts the overall count in the X-Total-Count header.
-    [Authorize(Roles = "admin")]
+    [Authorize(Policy = Permissions.UsersView)]
     [HttpGet]
     public async Task<IActionResult> GetAll(
         [FromQuery] int? page,
@@ -64,6 +74,7 @@ public class UsersController(AppDbContext db) : ControllerBase
         return Ok((await query.ToListAsync()).Select(ToDto));
     }
 
+    [Authorize(Policy = Permissions.ProfileManageOwn)]
     [HttpGet("{id:int}")]
     public async Task<IActionResult> Get(int id)
     {
@@ -72,10 +83,12 @@ public class UsersController(AppDbContext db) : ControllerBase
         return user is null ? NotFound(new { message = "User not found." }) : Ok(ToDto(user));
     }
 
+    // Users edit only their own profile; admins manage other accounts by deactivating them.
+    [Authorize(Policy = Permissions.ProfileManageOwn)]
     [HttpPatch("{id:int}")]
     public async Task<IActionResult> Patch(int id, UserPatch req)
     {
-        if (!User.CanAccessUser(id)) return Forbid();
+        if (User.UserId() != id) return Forbid();
         var user = await db.Users.FindAsync(id);
         if (user is null) return NotFound(new { message = "User not found." });
 
@@ -122,14 +135,14 @@ public class UsersController(AppDbContext db) : ControllerBase
 
     // Soft delete: the row (and the user's order history) stays, but login is blocked
     // and any tokens the user already holds are rejected on their next request.
-    [Authorize(Roles = "admin")]
+    [Authorize(Policy = Permissions.UsersDeactivate)]
     [HttpPatch("{id:int}/deactivate")]
     public async Task<IActionResult> Deactivate(int id)
     {
         var user = await db.Users.FindAsync(id);
         if (user is null) return NotFound(new { message = "User not found." });
         if (user.Id == User.UserId()) return BadRequest(new { message = "You can't deactivate your own account." });
-        if (user.Role == "admin") return BadRequest(new { message = "Admin accounts can't be deactivated here." });
+        if (user.Role == Roles.Admin) return BadRequest(new { message = "Admin accounts can't be deactivated here." });
 
         if (user.IsActive)
         {
@@ -140,7 +153,7 @@ public class UsersController(AppDbContext db) : ControllerBase
         return Ok(ToDto(user));
     }
 
-    [Authorize(Roles = "admin")]
+    [Authorize(Policy = Permissions.UsersDeactivate)]
     [HttpPatch("{id:int}/reactivate")]
     public async Task<IActionResult> Reactivate(int id)
     {

@@ -2,7 +2,7 @@
 // Checklist: separate API service layer from UI components.
 // All fetch() calls go to /api which Vite proxies to the ASP.NET Core API (localhost:5143).
 
-import { API_BASE, STORAGE_KEYS, SESSION_EXPIRED_EVENT } from "../constants/auth";
+import { API_BASE, STORAGE_KEYS, SESSION_EXPIRED_EVENT, ROLES } from "../constants/auth";
 
 // ── Internal helpers ──────────────────────────────────────────────────────────
 
@@ -90,9 +90,12 @@ export async function registerUser({ name, email, password }) {
 }
 
 /**
- * Authenticates a user and persists the JWT. By default the session lives in
- * sessionStorage (cleared when the tab closes); with rememberMe it goes to
- * localStorage and the server issues a 30-day token instead of an 8-hour one.
+ * Authenticates any user (one login for every role) and persists the JWT where
+ * that role's screens read it:
+ * - customer: sessionStorage (cleared when the tab closes); with rememberMe it goes
+ *   to localStorage and the server issues a 30-day token instead of an 8-hour one.
+ * - admin: the admin token slot used by the admin panel; tab-scoped, never remembered.
+ * The returned user includes `role` and the `permissions` that role grants.
  *
  * @param {{ email: string, password: string, rememberMe?: boolean }} credentials
  * @returns {Promise<{ success: boolean, message: string, user?: object }>}
@@ -114,9 +117,13 @@ export async function loginUser({ email, password, rememberMe = false }) {
   }
 
   clearSession();
-  const store = rememberMe ? localStorage : sessionStorage;
-  store.setItem(STORAGE_KEYS.TOKEN, data.token);
-  store.setItem(STORAGE_KEYS.USER, JSON.stringify(data.user));
+  if (data.user.role === ROLES.ADMIN) {
+    saveAdminToken(data.token);
+  } else {
+    const store = rememberMe ? localStorage : sessionStorage;
+    store.setItem(STORAGE_KEYS.TOKEN, data.token);
+    store.setItem(STORAGE_KEYS.USER, JSON.stringify(data.user));
+  }
 
   return { success: true, message: data.message, user: data.user };
 }
@@ -156,6 +163,24 @@ export async function fetchCurrentUser() {
 }
 
 /**
+ * Same check for the admin session: confirms the admin token is still valid and
+ * returns the admin with their current role and permissions from the database.
+ *
+ * @returns {Promise<object|null|undefined>} the admin, null if the session is
+ *   invalid, or undefined if the server can't be reached (keep the cached admin)
+ */
+export async function fetchCurrentAdmin() {
+  const headers = authHeaders("admin");
+  if (!headers.Authorization) return null;
+  try {
+    const res = await fetch(`${API_BASE}/auth/me`, { headers });
+    return res.ok ? await res.json() : null;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
  * Fetches a user's profile from the server (no passwordHash).
  * @param {string} userId
  * @returns {Promise<{ success: boolean, message?: string, user?: object }>}
@@ -184,13 +209,15 @@ export async function updateUserProfile(userId, payload) {
   });
   if (!res.ok) return { success: false, message: data.message || "Failed to update profile." };
 
-  // Keep the cached user in sync so Navbar etc. update without a re-login
+  // Keep the cached user in sync so Navbar etc. update without a re-login.
+  // The profile response has no permissions, so carry over the cached ones.
+  const user = { ...data, permissions: restoreSession().user?.permissions ?? [] };
   try {
-    sessionStore().setItem(STORAGE_KEYS.USER, JSON.stringify(data));
+    sessionStore().setItem(STORAGE_KEYS.USER, JSON.stringify(user));
   } catch {
     // storage unavailable — non-fatal
   }
-  return { success: true, user: data };
+  return { success: true, user };
 }
 
 /**

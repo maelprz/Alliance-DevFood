@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNav } from "../context/useNav";
 import AuthCard from "../components/AuthCard";
+import FormAlert from "../components/FormAlert";
 import { resetPassword } from "../services/authService";
 import { validatePassword } from "../utils/validation";
 import { authInputStyle, authButtonStyle, authLinkStyle } from "../constants/authStyles";
@@ -84,42 +85,14 @@ export default function ResetPassword() {
     <AuthCard title="Choose a new password" subtitle="Your new password will replace the old one and sign you out everywhere.">
       {done ? (
         <>
-          <p
-            role="status"
-            style={{
-              background: "#ecfdf5",
-              border: "1px solid #a7f3d0",
-              color: "#065f46",
-              padding: "12px 14px",
-              borderRadius: 8,
-              fontSize: 14,
-              margin: "0 0 16px",
-            }}
-          >
-            {done}
-          </p>
+          <FormAlert tone="success" style={{ marginBottom: 16 }}>{done}</FormAlert>
           <button type="button" onClick={goToLogin} style={authButtonStyle(false)}>
             Go to login
           </button>
         </>
       ) : (
         <form onSubmit={handleSubmit} noValidate style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          {serverError && (
-            <p
-              role="alert"
-              style={{
-                background: "#fef2f2",
-                border: "1px solid #fecaca",
-                color: "#dc2626",
-                padding: "10px 14px",
-                borderRadius: 8,
-                fontSize: 13,
-                margin: 0,
-              }}
-            >
-              {serverError}
-            </p>
-          )}
+          {serverError && <FormAlert>{serverError}</FormAlert>}
           {[
             { key: "password", label: "New password" },
             { key: "confirm", label: "Confirm new password" },

@@ -3,6 +3,7 @@ import Navbar from "../components/Navbar";
 import { useApp } from "../context/useApp";
 import { useNav } from "../context/useNav";
 import { getUserProfile, updateUserProfile } from "../services/authService";
+import FormAlert from "../components/FormAlert";
 
 const STATUS_COLORS = {
   Pending: { color: "#b45309", bg: "#fef3c7" },
@@ -143,7 +144,7 @@ export default function Profile() {
   const performSave = async () => {
     setError(null);
     setSaving(true);
-    const result = await updateUserProfile(user.id, {
+    const result = await updateUserProfile(user?.id, {
       name: form.name,
       email: form.email,
       phone: form.phone,
@@ -184,7 +185,7 @@ export default function Profile() {
       return;
     }
     setSaving(true);
-    const result = await updateUserProfile(user.id, {
+    const result = await updateUserProfile(user?.id, {
       currentPassword: pwForm.currentPassword,
       newPassword: pwForm.newPassword,
     });
@@ -365,38 +366,8 @@ export default function Profile() {
         </div>
 
         {/* ── Alerts ───────────────────────────────────────────────────────── */}
-        {error && (
-          <div
-            role="alert"
-            style={{
-              background: "#fee2e2",
-              border: "1px solid #fca5a5",
-              borderRadius: 8,
-              padding: "10px 14px",
-              marginBottom: 16,
-              fontSize: 13,
-              color: "#991b1b",
-            }}
-          >
-            {error}
-          </div>
-        )}
-        {success && (
-          <div
-            role="status"
-            style={{
-              background: "#d1fae5",
-              border: "1px solid #6ee7b7",
-              borderRadius: 8,
-              padding: "10px 14px",
-              marginBottom: 16,
-              fontSize: 13,
-              color: "#065f46",
-            }}
-          >
-            {success}
-          </div>
-        )}
+        {error && <FormAlert style={{ marginBottom: 16 }}>{error}</FormAlert>}
+        {success && <FormAlert tone="success" style={{ marginBottom: 16 }}>{success}</FormAlert>}
 
         {/* ── Personal Info tab ────────────────────────────────────────────── */}
         {tab === "info" && (

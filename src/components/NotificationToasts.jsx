@@ -1,20 +1,13 @@
 import { useEffect } from "react";
+import NotificationIcon from "./NotificationIcon";
 
 const AUTO_DISMISS_MS = 6000;
 
-const TOAST_STYLE = {
-  order_confirmed: { accent: "#16a34a", icon: "✓" },
-  order_status: { accent: "#FF5A36", icon: "🔔" },
-};
-
-// One toast; dismisses itself after a few seconds.
 function Toast({ toast, onDismiss, onOpen }) {
   useEffect(() => {
     const t = setTimeout(() => onDismiss(toast.id), AUTO_DISMISS_MS);
     return () => clearTimeout(t);
   }, [toast.id, onDismiss]);
-
-  const { accent, icon } = TOAST_STYLE[toast.type] ?? TOAST_STYLE.order_status;
 
   return (
     <div
@@ -22,39 +15,38 @@ function Toast({ toast, onDismiss, onOpen }) {
       style={{
         display: "flex",
         gap: 12,
-        alignItems: "flex-start",
-        background: "#ffffff",
-        borderLeft: `4px solid ${accent}`,
-        borderRadius: 10,
-        boxShadow: "0 10px 30px rgba(0, 0, 0, 0.15)",
-        padding: "12px 14px",
-        width: 320,
+        alignItems: "center",
+        background: "#1f2937",
+        color: "#f9fafb",
+        borderRadius: 12,
+        boxShadow: "0 8px 24px rgba(17, 24, 39, 0.25)",
+        padding: "12px 12px 12px 14px",
+        width: 340,
         maxWidth: "calc(100vw - 32px)",
         boxSizing: "border-box",
         pointerEvents: "auto",
       }}
     >
-      <span aria-hidden="true" style={{ fontSize: 18, color: accent, lineHeight: 1.2 }}>
-        {icon}
-      </span>
+      <NotificationIcon type={toast.type} size={34} background="rgba(255, 90, 54, 0.18)" color="#ff8a65" />
       <div style={{ flex: 1, minWidth: 0 }}>
-        <p style={{ margin: "0 0 2px", fontSize: 14, fontWeight: 600, color: "#111827" }}>{toast.title}</p>
-        <p style={{ margin: 0, fontSize: 13, color: "#4b5563" }}>{toast.message}</p>
+        <p style={{ margin: 0, fontSize: 14, fontWeight: 600 }}>{toast.title}</p>
+        <p style={{ margin: "2px 0 0", fontSize: 13, color: "#d1d5db", lineHeight: 1.4 }}>{toast.message}</p>
       </div>
       <button
         onClick={() => {
           onOpen(toast.id);
           onDismiss(toast.id);
         }}
-        aria-label="Dismiss notification"
+        aria-label="Dismiss"
         style={{
+          alignSelf: "flex-start",
           background: "none",
           border: "none",
           color: "#9ca3af",
-          fontSize: 16,
-          cursor: "pointer",
-          padding: 0,
+          fontSize: 18,
           lineHeight: 1,
+          cursor: "pointer",
+          padding: 2,
         }}
       >
         ×
@@ -63,8 +55,7 @@ function Toast({ toast, onDismiss, onOpen }) {
   );
 }
 
-// In-app alerts for Order Confirmed / Order Status Update notifications,
-// stacked in the bottom-right corner.
+// Order Confirmed / Order Update pop-ups, bottom-right.
 // Exports only NotificationToasts component — React Compiler rule
 export default function NotificationToasts({ toasts, onDismiss, onOpen }) {
   if (toasts.length === 0) return null;
@@ -73,8 +64,8 @@ export default function NotificationToasts({ toasts, onDismiss, onOpen }) {
       aria-live="polite"
       style={{
         position: "fixed",
-        right: 16,
-        bottom: 16,
+        right: 20,
+        bottom: 20,
         display: "flex",
         flexDirection: "column",
         gap: 10,

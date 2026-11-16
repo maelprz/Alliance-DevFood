@@ -417,6 +417,50 @@ namespace DevFood.Api.Migrations
                     b.ToTable("payments", (string)null);
                 });
 
+            modelBuilder.Entity("Permission", b =>
+                {
+                    b.Property<string>("Name")
+                        .HasColumnType("text")
+                        .HasColumnName("name");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("description");
+
+                    b.HasKey("Name")
+                        .HasName("pk_permissions");
+
+                    b.ToTable("permissions", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            Name = "admin.panel",
+                            Description = "Open the admin panel"
+                        },
+                        new
+                        {
+                            Name = "users.view",
+                            Description = "List and search registered users"
+                        },
+                        new
+                        {
+                            Name = "users.deactivate",
+                            Description = "Deactivate or reactivate customer accounts"
+                        },
+                        new
+                        {
+                            Name = "profile.manage_own",
+                            Description = "View and edit own profile and password"
+                        },
+                        new
+                        {
+                            Name = "notifications.read_own",
+                            Description = "Read and mark own notifications"
+                        });
+                });
+
             modelBuilder.Entity("RevokedToken", b =>
                 {
                     b.Property<string>("Jti")
@@ -431,6 +475,91 @@ namespace DevFood.Api.Migrations
                         .HasName("pk_revoked_tokens");
 
                     b.ToTable("revoked_tokens", (string)null);
+                });
+
+            modelBuilder.Entity("Role", b =>
+                {
+                    b.Property<string>("Name")
+                        .HasColumnType("text")
+                        .HasColumnName("name");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("description");
+
+                    b.HasKey("Name")
+                        .HasName("pk_roles");
+
+                    b.ToTable("roles", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            Name = "customer",
+                            Description = "Registered customer who orders food"
+                        },
+                        new
+                        {
+                            Name = "admin",
+                            Description = "Staff member who manages the system"
+                        });
+                });
+
+            modelBuilder.Entity("RolePermission", b =>
+                {
+                    b.Property<string>("RoleName")
+                        .HasColumnType("text")
+                        .HasColumnName("role_name");
+
+                    b.Property<string>("PermissionName")
+                        .HasColumnType("text")
+                        .HasColumnName("permission_name");
+
+                    b.HasKey("RoleName", "PermissionName")
+                        .HasName("pk_role_permissions");
+
+                    b.HasIndex("PermissionName")
+                        .HasDatabaseName("ix_role_permissions_permission_name");
+
+                    b.ToTable("role_permissions", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            RoleName = "customer",
+                            PermissionName = "profile.manage_own"
+                        },
+                        new
+                        {
+                            RoleName = "customer",
+                            PermissionName = "notifications.read_own"
+                        },
+                        new
+                        {
+                            RoleName = "admin",
+                            PermissionName = "admin.panel"
+                        },
+                        new
+                        {
+                            RoleName = "admin",
+                            PermissionName = "users.view"
+                        },
+                        new
+                        {
+                            RoleName = "admin",
+                            PermissionName = "users.deactivate"
+                        },
+                        new
+                        {
+                            RoleName = "admin",
+                            PermissionName = "profile.manage_own"
+                        },
+                        new
+                        {
+                            RoleName = "admin",
+                            PermissionName = "notifications.read_own"
+                        });
                 });
 
             modelBuilder.Entity("User", b =>
@@ -491,7 +620,9 @@ namespace DevFood.Api.Migrations
 
                     b.Property<string>("Role")
                         .IsRequired()
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("text")
+                        .HasDefaultValue("customer")
                         .HasColumnName("role");
 
                     b.Property<DateTime?>("SessionsValidAfter")
@@ -504,6 +635,9 @@ namespace DevFood.Api.Migrations
                     b.HasIndex("Email")
                         .IsUnique()
                         .HasDatabaseName("ix_users_email");
+
+                    b.HasIndex("Role")
+                        .HasDatabaseName("ix_users_role");
 
                     b.ToTable("users", (string)null);
                 });
@@ -616,11 +750,47 @@ namespace DevFood.Api.Migrations
                     b.Navigation("Order");
                 });
 
+            modelBuilder.Entity("RolePermission", b =>
+                {
+                    b.HasOne("Permission", "Permission")
+                        .WithMany()
+                        .HasForeignKey("PermissionName")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_role_permissions_permissions_permission_name");
+
+                    b.HasOne("Role", "Role")
+                        .WithMany("Permissions")
+                        .HasForeignKey("RoleName")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_role_permissions_roles_role_name");
+
+                    b.Navigation("Permission");
+
+                    b.Navigation("Role");
+                });
+
+            modelBuilder.Entity("User", b =>
+                {
+                    b.HasOne("Role", null)
+                        .WithMany()
+                        .HasForeignKey("Role")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_users_roles_role");
+                });
+
             modelBuilder.Entity("Order", b =>
                 {
                     b.Navigation("Items");
 
                     b.Navigation("Payment");
+                });
+
+            modelBuilder.Entity("Role", b =>
+                {
+                    b.Navigation("Permissions");
                 });
 #pragma warning restore 612, 618
         }

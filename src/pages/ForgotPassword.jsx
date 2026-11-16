@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNav } from "../context/useNav";
 import AuthCard from "../components/AuthCard";
+import FormAlert from "../components/FormAlert";
 import { requestPasswordReset } from "../services/authService";
 import { isValidEmail } from "../utils/validation";
 import { authInputStyle, authButtonStyle, authLinkStyle } from "../constants/authStyles";
@@ -39,20 +40,10 @@ export default function ForgotPassword() {
       subtitle="Enter the email you registered with and we'll send you a link to reset it."
     >
       {result ? (
-        <div role="status">
-          <p
-            style={{
-              background: "#ecfdf5",
-              border: "1px solid #a7f3d0",
-              color: "#065f46",
-              padding: "12px 14px",
-              borderRadius: 8,
-              fontSize: 14,
-              margin: "0 0 16px",
-            }}
-          >
+        <div>
+          <FormAlert tone="success" style={{ marginBottom: 16 }}>
             {result.message} The link expires in 30 minutes.
-          </p>
+          </FormAlert>
           {/* Only returned by the API in local development when no email server is configured. */}
           {result.devResetLink && (
             <p style={{ fontSize: 13, color: "#6b7280", margin: "0 0 16px", wordBreak: "break-all" }}>

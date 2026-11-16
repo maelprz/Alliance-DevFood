@@ -9,6 +9,21 @@ export const API_BASE = "/api";
 /** Fired on window when the server rejects the customer's token (expired, revoked, deactivated). */
 export const SESSION_EXPIRED_EVENT = "devfood:session-expired";
 
+/** RBAC role names — same values as the roles table and the server's Roles class. */
+export const ROLES = {
+  CUSTOMER: "customer",
+  ADMIN: "admin",
+};
+
+/** RBAC permission names — same values as the permissions table and the server's Permissions class. */
+export const PERMISSIONS = {
+  ADMIN_PANEL: "admin.panel",
+  USERS_VIEW: "users.view",
+  USERS_DEACTIVATE: "users.deactivate",
+  PROFILE_MANAGE_OWN: "profile.manage_own",
+  NOTIFICATIONS_READ_OWN: "notifications.read_own",
+};
+
 /** Maximum login attempts before account lockout */
 export const MAX_LOGIN_ATTEMPTS = 5;
 

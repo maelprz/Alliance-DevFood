@@ -42,7 +42,9 @@ public class AuthController(
         {
             FullName = name,
             Email = email,
-            PasswordHash = BCrypt.Net.BCrypt.HashPassword(req.Password)
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword(req.Password),
+            // Self-registration always creates a customer; admins are seeded, never signed up.
+            Role = Roles.Customer
         };
         db.Users.Add(user);
         await db.SaveChangesAsync();
@@ -66,8 +68,11 @@ public class AuthController(
         if (!user.IsActive)
             return StatusCode(403, new { message = "This account has been deactivated. Please contact the admin." });
 
-        var (token, expiresAt) = tokens.Issue(user, req.RememberMe == true);
-        return Ok(new { message = "Login successful.", token, expiresAt, user = UsersController.ToDto(user) });
+        // One login for every role; the client routes by role. Admins never get a 30-day token.
+        var rememberMe = req.RememberMe == true && user.Role != Roles.Admin;
+        var (token, expiresAt) = tokens.Issue(user, rememberMe);
+        var permissions = await db.PermissionsForRoleAsync(user.Role);
+        return Ok(new { message = "Login successful.", token, expiresAt, user = UsersController.ToSessionDto(user, permissions) });
     }
 
     // Revokes the current token so it can't be reused even before it expires.
@@ -95,7 +100,10 @@ public class AuthController(
     public async Task<IActionResult> Me()
     {
         var user = await db.Users.FindAsync(User.UserId());
-        return user is null ? NotFound(new { message = "User not found." }) : Ok(UsersController.ToDto(user));
+        if (user is null) return NotFound(new { message = "User not found." });
+        // Permissions were already loaded from the database when the token was validated.
+        var permissions = User.FindAll(Permissions.ClaimType).Select(c => c.Value).Order();
+        return Ok(UsersController.ToSessionDto(user, permissions));
     }
 
     [HttpPost("forgot-password")]

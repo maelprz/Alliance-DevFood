@@ -2,6 +2,9 @@ import { useState, useEffect } from "react";
 import { useApp } from "../context/useApp";
 import { useNav } from "../context/useNav";
 import { authHeaders } from "../services/authService";
+import { PERMISSIONS, ROLES } from "../constants/auth";
+import { hasPermission } from "../utils/rbac";
+import FormAlert from "./FormAlert";
 
 const PAGE_SIZE = 10;
 
@@ -14,7 +17,8 @@ function formatDate(iso) {
 // deactivate / reactivate behind a confirmation dialog.
 // Exports only UserManager component — React Compiler rule
 export default function UserManager() {
-  const { setAdminUser } = useApp();
+  const { adminUser, setAdminUser } = useApp();
+  const canDeactivate = hasPermission(adminUser, PERMISSIONS.USERS_DEACTIVATE);
   const { navigate } = useNav();
   const [users, setUsers] = useState([]);
   const [total, setTotal] = useState(0);
@@ -31,7 +35,7 @@ export default function UserManager() {
   useEffect(() => {
     if (!sessionExpired) return;
     setAdminUser(null);
-    navigate("admin-login");
+    navigate("login");
   }, [sessionExpired, setAdminUser, navigate]);
 
   // `loading` is switched on by whatever changes page/query (initial state, pager,
@@ -122,21 +126,9 @@ export default function UserManager() {
       <h1 style={{ fontSize: 24, fontWeight: 700, marginBottom: 24, color: "#111827" }}>Registered Users</h1>
 
       {message && (
-        <div
-          role={message.error ? "alert" : "status"}
-          style={{
-            background: message.error ? "#fef2f2" : "#ecfdf5",
-            color: message.error ? "#dc2626" : "#065f46",
-            padding: "12px 16px",
-            border: `1px solid ${message.error ? "#fecaca" : "#a7f3d0"}`,
-            borderRadius: 8,
-            marginBottom: 24,
-            fontSize: 14,
-            fontWeight: 500,
-          }}
-        >
+        <FormAlert tone={message.error ? "error" : "success"} style={{ marginBottom: 20, maxWidth: 560 }}>
           {message.text}
-        </div>
+        </FormAlert>
       )}
 
       <input
@@ -209,7 +201,7 @@ export default function UserManager() {
                     </span>
                   </td>
                   <td style={cell}>
-                    {u.role !== "admin" && (
+                    {canDeactivate && u.role !== ROLES.ADMIN && (
                       <button
                         onClick={() => setConfirming(u)}
                         style={{

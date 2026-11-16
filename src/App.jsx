@@ -16,18 +16,21 @@ import TrackOrder from "./components/TrackOrder";
 import AdminLogin from "./components/AdminLogin";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
+import { PERMISSIONS } from "./constants/auth";
+import { hasPermission } from "./utils/rbac";
 // Admin is the heaviest page and only used by the admin role — lazy-load it
 // so customers never download it on first paint.
 const Admin = lazy(() => import("./pages/Admin"));
 
-// ── Route guard for admin ─────────────────────────────────────────────────────
-// If adminUser is not set, redirect to admin-login instead of rendering admin
+// ── Route guard for admin (RBAC) ──────────────────────────────────────────────
+// Only a role that grants admin.panel may open the admin view; everyone else goes
+// to the single login page. The API still checks every admin request on its own.
 function AdminGuard({ children }) {
   const { adminUser } = useApp();
   const { navigate } = useNav();
-  if (!adminUser) {
-    // Redirect to admin login on next tick to avoid render-phase side effect
-    setTimeout(() => navigate("admin-login"), 0);
+  if (!hasPermission(adminUser, PERMISSIONS.ADMIN_PANEL)) {
+    // Redirect on next tick to avoid render-phase side effect
+    setTimeout(() => navigate("login"), 0);
     return null;
   }
   return children;

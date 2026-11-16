@@ -25,7 +25,7 @@ public class NotificationsController(AppDbContext db) : ControllerBase
     };
 
     // A customer's feed: their direct notifications plus every broadcast, newest first.
-    [Authorize]
+    [Authorize(Policy = Permissions.NotificationsReadOwn)]
     [HttpGet]
     public async Task<IActionResult> ForUser([FromQuery(Name = "user_id")] int userId)
     {
@@ -89,7 +89,7 @@ public class NotificationsController(AppDbContext db) : ControllerBase
         return Ok(new { message = "Notification deleted." });
     }
 
-    [Authorize]
+    [Authorize(Policy = Permissions.NotificationsReadOwn)]
     [HttpPatch("{id:int}/read")]
     public async Task<IActionResult> MarkRead(int id, NotificationReadRequest req)
     {
@@ -105,7 +105,7 @@ public class NotificationsController(AppDbContext db) : ControllerBase
         return Ok(new { message = "Marked as read." });
     }
 
-    [Authorize]
+    [Authorize(Policy = Permissions.NotificationsReadOwn)]
     [HttpPatch("read-all")]
     public async Task<IActionResult> MarkAllRead(NotificationReadRequest req)
     {

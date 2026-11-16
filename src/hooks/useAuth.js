@@ -150,7 +150,7 @@ export function useAuth({ onLoginSuccess }) {
         setServerError(
           nowLocked
             ? "Account locked after 5 failed attempts. Try again in 15 minutes."
-            : `${result.message} (${left} attempt${left !== 1 ? "s" : ""} left)`,
+            : `${result.message} ${left} attempt${left !== 1 ? "s" : ""} left.`,
         );
         return;
       }

@@ -1,12 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useNotifications } from "../context/useNotifications";
-
-const TYPE_LABELS = {
-  order_confirmed: "Order Confirmed",
-  order_status: "Order Update",
-  coupon: "New Coupon",
-  broadcast: "Announcement",
-};
+import NotificationIcon from "./NotificationIcon";
 
 function timeAgo(iso) {
   const secs = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
@@ -102,24 +96,24 @@ export default function NotificationBell() {
             width: 360,
             maxHeight: 460,
             background: "#fff",
-            border: "1px solid #e5e7eb",
+            border: "1px solid #eaecf0",
             borderRadius: 12,
-            boxShadow: "0 10px 30px rgba(0,0,0,0.12)",
+            boxShadow: "0 12px 32px rgba(16, 24, 40, 0.12)",
             display: "flex",
             flexDirection: "column",
+            overflow: "hidden",
             zIndex: 100,
           }}
         >
           <div
             style={{
-              padding: "12px 16px",
-              borderBottom: "1px solid #f3f4f6",
+              padding: "14px 16px 10px",
               display: "flex",
-              alignItems: "center",
+              alignItems: "baseline",
               justifyContent: "space-between",
             }}
           >
-            <span style={{ fontSize: 14, fontWeight: 700, color: "#111827" }}>
+            <span style={{ fontSize: 15, fontWeight: 600, color: "#101828" }}>
               Notifications
             </span>
             {unreadCount > 0 && (
@@ -128,28 +122,25 @@ export default function NotificationBell() {
                 style={{
                   background: "none",
                   border: "none",
-                  color: "#FF5A36",
+                  color: "#667085",
                   fontSize: 12,
-                  fontWeight: 600,
                   cursor: "pointer",
+                  padding: 0,
+                  fontFamily: "inherit",
                 }}
               >
-                Mark all read
+                Mark all as read
               </button>
             )}
           </div>
 
           <div style={{ overflowY: "auto", flex: 1 }}>
             {notifications.length === 0 ? (
-              <div
-                style={{
-                  padding: "32px 16px",
-                  textAlign: "center",
-                  color: "#9ca3af",
-                  fontSize: 13,
-                }}
-              >
-                No notifications yet.
+              <div style={{ padding: "28px 16px 32px", textAlign: "center" }}>
+                <p style={{ margin: 0, fontSize: 14, color: "#344054" }}>You're all caught up</p>
+                <p style={{ margin: "4px 0 0", fontSize: 12, color: "#98a2b3" }}>
+                  Order updates will show up here.
+                </p>
               </div>
             ) : (
               notifications.map((n) => (
@@ -159,69 +150,53 @@ export default function NotificationBell() {
                   style={{
                     width: "100%",
                     textAlign: "left",
-                    display: "block",
+                    display: "flex",
+                    gap: 12,
+                    alignItems: "flex-start",
                     padding: "12px 16px",
                     border: "none",
-                    borderBottom: "1px solid #f3f4f6",
-                    background: n.isRead ? "#fff" : "#fff7ed",
+                    borderTop: "1px solid #f2f4f7",
+                    background: n.isRead ? "#fff" : "#fffaf8",
                     cursor: "pointer",
                     fontFamily: "inherit",
                   }}
                 >
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      marginBottom: 4,
-                    }}
-                  >
-                    <span
-                      style={{
-                        fontSize: 11,
-                        fontWeight: 700,
-                        color: "#FF5A36",
-                        textTransform: "uppercase",
-                        letterSpacing: 0.5,
-                      }}
-                    >
-                      {TYPE_LABELS[n.type] || "Notification"}
-                    </span>
-                    <span style={{ fontSize: 11, color: "#9ca3af" }}>
-                      {timeAgo(n.createdAt)}
-                    </span>
-                  </div>
-                  <div
-                    style={{
-                      fontSize: 13,
-                      fontWeight: 600,
-                      color: "#111827",
-                      marginBottom: 2,
-                    }}
-                  >
-                    {n.title}
-                  </div>
-                  <div style={{ fontSize: 13, color: "#4b5563", lineHeight: 1.4 }}>
-                    {n.message}
-                  </div>
-                  {n.couponCode && (
-                    <div
-                      style={{
-                        marginTop: 8,
-                        display: "inline-block",
-                        padding: "4px 10px",
-                        background: "#fdf6ef",
-                        border: "1px dashed #FF5A36",
-                        borderRadius: 6,
-                        fontSize: 12,
-                        fontWeight: 700,
-                        color: "#c2410c",
-                        fontFamily: "monospace",
-                        letterSpacing: 1,
-                      }}
-                    >
-                      {n.couponCode}
+                  <NotificationIcon type={n.type} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
+                      <span style={{ fontSize: 13, fontWeight: n.isRead ? 500 : 600, color: "#101828" }}>
+                        {n.title}
+                      </span>
+                      <span style={{ fontSize: 11, color: "#98a2b3", whiteSpace: "nowrap" }}>
+                        {timeAgo(n.createdAt)}
+                      </span>
                     </div>
+                    <div style={{ fontSize: 13, color: "#475467", lineHeight: 1.4, marginTop: 2 }}>
+                      {n.message}
+                    </div>
+                    {n.couponCode && (
+                      <span
+                        style={{
+                          marginTop: 8,
+                          display: "inline-block",
+                          padding: "3px 8px",
+                          background: "#f2f4f7",
+                          borderRadius: 6,
+                          fontSize: 12,
+                          fontWeight: 600,
+                          color: "#344054",
+                          fontFamily: "monospace",
+                        }}
+                      >
+                        {n.couponCode}
+                      </span>
+                    )}
+                  </div>
+                  {!n.isRead && (
+                    <span
+                      aria-label="Unread"
+                      style={{ width: 8, height: 8, borderRadius: "50%", background: "#FF5A36", marginTop: 6, flexShrink: 0 }}
+                    />
                   )}
                 </button>
               ))

@@ -13,6 +13,9 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<NotificationRead> NotificationReads => Set<NotificationRead>();
     public DbSet<RevokedToken> RevokedTokens => Set<RevokedToken>();
     public DbSet<PasswordResetToken> PasswordResetTokens => Set<PasswordResetToken>();
+    public DbSet<Role> Roles => Set<Role>();
+    public DbSet<Permission> Permissions => Set<Permission>();
+    public DbSet<RolePermission> RolePermissions => Set<RolePermission>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -59,5 +62,29 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 
         b.Entity<RevokedToken>().HasKey(r => r.Jti);
         b.Entity<PasswordResetToken>().HasIndex(t => t.TokenHash).IsUnique();
+
+        // RBAC: roles grant permissions; every user's role must exist in roles.
+        b.Entity<Role>(r =>
+        {
+            r.HasKey(x => x.Name);
+            r.HasData(RbacSeed.Roles);
+        });
+        b.Entity<Permission>(p =>
+        {
+            p.HasKey(x => x.Name);
+            p.HasData(RbacSeed.Permissions);
+        });
+        b.Entity<RolePermission>(rp =>
+        {
+            rp.HasKey(x => new { x.RoleName, x.PermissionName });
+            rp.HasOne(x => x.Role).WithMany(r => r.Permissions).HasForeignKey(x => x.RoleName);
+            rp.HasOne(x => x.Permission).WithMany().HasForeignKey(x => x.PermissionName);
+            rp.HasData(RbacSeed.RolePermissions);
+        });
+        b.Entity<User>(u =>
+        {
+            u.Property(x => x.Role).HasDefaultValue(global::Roles.Customer);
+            u.HasOne<Role>().WithMany().HasForeignKey(x => x.Role).OnDelete(DeleteBehavior.Restrict);
+        });
     }
 }

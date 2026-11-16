@@ -2,13 +2,15 @@ import { useEffect } from "react";
 import { useNav } from "../context/useNav";
 import { useApp } from "../context/useApp";
 import { useAuth } from "../hooks/useAuth";
-import { MAX_LOGIN_ATTEMPTS } from "../constants/auth";
+import { PERMISSIONS } from "../constants/auth";
+import { hasPermission } from "../utils/rbac";
+import FormAlert from "../components/FormAlert";
 
 // Customer Login / Sign Up page
 // Exports only Login component — React Compiler rule (one export type per file)
 export default function Login() {
   const { navigate } = useNav();
-  const { setUser } = useApp();
+  const { setUser, setAdminUser } = useApp();
 
   // Lock page scroll while on the auth screen — there's nothing below the form
   // to scroll to, and locking ensures the fixed gradient bg always appears full.
@@ -36,9 +38,15 @@ export default function Login() {
     handleLogin,
     handleRegister,
   } = useAuth({
+    // One login for every role (RBAC): admins go to the admin panel, customers to the menu.
     onLoginSuccess: (user) => {
-      setUser(user);
-      navigate("menu");
+      if (hasPermission(user, PERMISSIONS.ADMIN_PANEL)) {
+        setAdminUser(user);
+        navigate("admin");
+      } else {
+        setUser(user);
+        navigate("menu");
+      }
     },
   });
 
@@ -190,61 +198,10 @@ export default function Login() {
             })}
           </div>
 
-          {/* Rate-limit warning — shown after first failure */}
-          {!isSignUp &&
-            attemptsLeft < MAX_LOGIN_ATTEMPTS &&
-            attemptsLeft > 0 && (
-              <div
-                role="alert"
-                style={{
-                  background: "#fff3cd",
-                  border: "1px solid #ffc107",
-                  borderRadius: 8,
-                  padding: "10px 14px",
-                  marginBottom: 16,
-                  fontSize: 13,
-                  color: "#856404",
-                }}
-              >
-                ⚠️ {attemptsLeft} attempt{attemptsLeft !== 1 ? "s" : ""}{" "}
-                remaining before lockout.
-              </div>
-            )}
+          {serverError && <FormAlert style={{ marginBottom: 16 }}>{serverError}</FormAlert>}
 
-          {/* Server error */}
-          {serverError && (
-            <div
-              role="alert"
-              style={{
-                background: "#fee2e2",
-                border: "1px solid #fca5a5",
-                borderRadius: 8,
-                padding: "10px 14px",
-                marginBottom: 16,
-                fontSize: 13,
-                color: "#991b1b",
-              }}
-            >
-              {serverError}
-            </div>
-          )}
-
-          {/* Success message */}
           {successMessage && (
-            <div
-              role="status"
-              style={{
-                background: "#d1fae5",
-                border: "1px solid #6ee7b7",
-                borderRadius: 8,
-                padding: "10px 14px",
-                marginBottom: 16,
-                fontSize: 13,
-                color: "#065f46",
-              }}
-            >
-              {successMessage}
-            </div>
+            <FormAlert tone="success" style={{ marginBottom: 16 }}>{successMessage}</FormAlert>
           )}
 
           {/* ── LOGIN FORM ── */}
@@ -673,32 +630,6 @@ export default function Login() {
           </div>
         </div>
 
-        {/* Admin link */}
-        <p
-          style={{
-            textAlign: "center",
-            marginTop: 20,
-            fontSize: 13,
-            color: "rgba(255,255,255,0.95)",
-          }}
-        >
-          Are you an admin?{" "}
-          <button
-            onClick={() => navigate("admin-login")}
-            style={{
-              background: "none",
-              border: "none",
-              color: "#ffffff",
-              cursor: "pointer",
-              fontSize: 13,
-              fontWeight: 600,
-              textDecoration: "underline",
-              fontFamily: "inherit",
-            }}
-          >
-            Admin Portal
-          </button>
-        </p>
       </div>
       </div>
     </>
