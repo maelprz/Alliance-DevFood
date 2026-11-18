@@ -10,16 +10,15 @@ export default function BrowseMenu() {
   const { menuItems, loading, error, retry } = useMenu();
   const { addToCart } = useCart();
   const { user } = useApp();
-  const { navigate } = useNav();
+  const { navigate, menuCategory } = useNav();
 
-  const [selectedCategory, setSelectedCategory] = useState("All");
+  const selectedCategory =
+    categoriesFromItems(menuItems).find((category) => categorySlug(category) === menuCategory) ??
+    "All";
   const [searchTerm, setSearchTerm] = useState("");
   const [addedItems, setAddedItems] = useState(new Set());
 
-  const categories = [
-    "All",
-    ...Array.from(new Set(menuItems.map((item) => item.category))),
-  ];
+  const categories = categoriesFromItems(menuItems);
 
   const CATEGORY_ORDER = [
   "Burger",
@@ -221,7 +220,11 @@ export default function BrowseMenu() {
           </label>
           <select
             value={selectedCategory}
-            onChange={(e) => setSelectedCategory(e.target.value)}
+            onChange={(e) =>
+              navigate("menu", {
+                category: e.target.value === "All" ? null : e.target.value,
+              })
+            }
             style={{
               padding: "8px 16px",
               borderRadius: 8,
@@ -369,4 +372,12 @@ export default function BrowseMenu() {
       </div>
     </div>
   );
+}
+
+function categoriesFromItems(menuItems) {
+  return ["All", ...Array.from(new Set(menuItems.map((item) => item.category)))];
+}
+
+function categorySlug(category) {
+  return category.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 }

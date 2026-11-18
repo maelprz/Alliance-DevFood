@@ -39,7 +39,7 @@ function AdminGuard({ children }) {
 // ── View router ───────────────────────────────────────────────────────────────
 // Maps view state → component. Replaces react-router-dom (blocked in sandbox).
 // On integration: swap with <BrowserRouter> + <Routes> from react-router-dom.
-// Correct URL mapping: login→/ | menu→/menu | cart→/cart | checkout→/checkout
+// Correct URL mapping: login→/ | menu→/menu (or /menu/:category) | cart→/cart
 //                     track→/track-order | admin-login→/admin/login | admin→/admin
 function AppRoutes() {
   const { view } = useNav();
