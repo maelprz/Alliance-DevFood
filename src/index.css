@@ -1,0 +1,56 @@
+/* DevFood — global base. Warm food-delivery palette: coral primary on cream. */
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap");
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* Make sure the page truly fills the viewport edge to edge and never produces
+   a phantom horizontal scrollbar (which can leave a "white border" on the side). */
+html, body, #root {
+  width: 100%;
+  min-height: 100vh;
+  min-height: 100dvh;
+  overflow-x: hidden;
+}
+
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  background-color: #fff8f3;
+}
+
+body {
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  /* Soft warm cream with two faint radial washes. background-attachment: fixed
+     anchors the gradient to the viewport so scrolling never reveals a "white
+     band" below long pages — the wash always covers the visible area. */
+  background-color: #fff8f3;
+  background-image:
+    radial-gradient(circle at 0% 0%, rgba(255, 90, 54, 0.06), transparent 50%),
+    radial-gradient(circle at 100% 0%, rgba(251, 191, 36, 0.05), transparent 45%);
+  background-attachment: fixed;
+  background-repeat: no-repeat;
+  background-size: cover;
+  color: #1f2937;
+  line-height: 1.5;
+}
+
+h1, h2, h3, h4 {
+  font-family: "Plus Jakarta Sans", "Inter", sans-serif;
+  letter-spacing: -0.01em;
+}
+
+button {
+  font-family: inherit;
+}
+
+/* Tabular figures for prices and totals across the app. */
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
