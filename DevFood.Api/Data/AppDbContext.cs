@@ -56,6 +56,10 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
         {
             c.HasIndex(x => x.Code).IsUnique();
             c.Property(x => x.MinOrder).HasPrecision(10, 2);
+            c.Property(x => x.FixedAmount).HasPrecision(10, 2);
+            c.Property(x => x.MaxDiscount).HasPrecision(10, 2);
+            // Coupons created before the coupon rules update are treated as percent coupons.
+            c.Property(x => x.DiscountType).HasDefaultValue("percent");
         });
 
         b.Entity<NotificationRead>().HasKey(r => new { r.NotificationId, r.UserId });

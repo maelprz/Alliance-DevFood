@@ -1,10 +1,23 @@
 import { useEffect, useState } from "react";
 import { authHeaders } from "../services/authService";
+import { describeCoupon } from "../utils/coupon";
 
 const AUDIENCE_LABEL = {
   all: "Everyone",
   user: "Single user",
 };
+
+async function loadHistory() {
+  const res = await fetch("/api/notifications/all", { headers: authHeaders("admin") });
+  const data = await res.json();
+  return Array.isArray(data) ? data : [];
+}
+
+async function loadCoupons() {
+  const res = await fetch("/api/coupons", { headers: authHeaders("admin") });
+  const data = await res.json();
+  return Array.isArray(data) ? data : [];
+}
 
 export default function NotificationManager() {
   const [history, setHistory] = useState([]);
@@ -16,29 +29,15 @@ export default function NotificationManager() {
   });
   const [coupons, setCoupons] = useState([]);
 
-  async function fetchHistory() {
-    try {
-      const res = await fetch("/api/notifications/all", { headers: authHeaders("admin") });
-      const data = await res.json();
-      setHistory(Array.isArray(data) ? data : []);
-    } catch (err) {
-      console.error("Failed to load notifications:", err);
-    }
-  }
-
-  async function fetchCoupons() {
-    try {
-      const res = await fetch("/api/coupons");
-      const data = await res.json();
-      setCoupons(Array.isArray(data) ? data : []);
-    } catch {
-      // Notifications can be sent without a coupon.
-    }
-  }
-
   useEffect(() => {
-    fetchHistory();
-    fetchCoupons();
+    let active = true;
+    loadHistory()
+      .then((data) => { if (active) setHistory(data); })
+      .catch((err) => console.error("Failed to load notifications:", err));
+    loadCoupons()
+      .then((data) => { if (active) setCoupons(data); })
+      .catch(() => {}); // Notifications can be sent without a coupon.
+    return () => { active = false; };
   }, []);
 
   async function sendBroadcast() {
@@ -69,7 +68,7 @@ export default function NotificationManager() {
       setForm({ title: "", body: "", couponCode: "" });
       setMessage("Notification sent to all customers.");
       setTimeout(() => setMessage(""), 2000);
-      fetchHistory();
+      loadHistory().then(setHistory).catch(console.error);
     } catch (err) {
       console.error(err);
       setMessage("Network error. Try again.");
@@ -90,7 +89,7 @@ export default function NotificationManager() {
         setMessage(errorText);
         return;
       }
-      fetchHistory();
+      loadHistory().then(setHistory).catch(console.error);
     } catch (err) {
       console.error(err);
       setMessage("Network error. Could not delete notification.");
@@ -193,11 +192,15 @@ export default function NotificationManager() {
               style={inputStyle}
             >
               <option value="">— None —</option>
-              {coupons.filter((c) => c.code).map((c) => (
-                <option key={c.code} value={c.code}>
-                  {c.code} ({c.discountPercent}% off, min ₱{c.minOrder})
-                </option>
-              ))}
+              {/* Only coupons customers can still use (or will soon) are offered. */}
+              {coupons
+                .filter((c) => c.status === "Active" || c.status === "Scheduled")
+                .map((c) => (
+                  <option key={c.code} value={c.code}>
+                    {c.code} ({describeCoupon(c)}, min ₱
+                    {Number(c.minOrder).toFixed(2)})
+                  </option>
+                ))}
             </select>
           </div>
         </div>

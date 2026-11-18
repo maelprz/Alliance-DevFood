@@ -69,22 +69,59 @@ namespace DevFood.Api.Migrations
                         .HasColumnType("text")
                         .HasColumnName("code");
 
+                    b.Property<string>("Description")
+                        .HasColumnType("text")
+                        .HasColumnName("description");
+
                     b.Property<int>("DiscountPercent")
                         .HasColumnType("integer")
                         .HasColumnName("discount_percent");
+
+                    b.Property<string>("DiscountType")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("text")
+                        .HasDefaultValue("percent")
+                        .HasColumnName("discount_type");
 
                     b.Property<DateOnly>("ExpiresAt")
                         .HasColumnType("date")
                         .HasColumnName("expires_at");
 
+                    b.Property<decimal>("FixedAmount")
+                        .HasPrecision(10, 2)
+                        .HasColumnType("numeric(10,2)")
+                        .HasColumnName("fixed_amount");
+
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean")
                         .HasColumnName("is_deleted");
+
+                    b.Property<bool>("IsDisabled")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_disabled");
+
+                    b.Property<decimal?>("MaxDiscount")
+                        .HasPrecision(10, 2)
+                        .HasColumnType("numeric(10,2)")
+                        .HasColumnName("max_discount");
 
                     b.Property<decimal>("MinOrder")
                         .HasPrecision(10, 2)
                         .HasColumnType("numeric(10,2)")
                         .HasColumnName("min_order");
+
+                    b.Property<int?>("PerUserLimit")
+                        .HasColumnType("integer")
+                        .HasColumnName("per_user_limit");
+
+                    b.Property<DateOnly?>("StartsAt")
+                        .HasColumnType("date")
+                        .HasColumnName("starts_at");
+
+                    b.Property<int?>("UsageLimit")
+                        .HasColumnType("integer")
+                        .HasColumnName("usage_limit");
 
                     b.HasKey("Id")
                         .HasName("pk_coupons");

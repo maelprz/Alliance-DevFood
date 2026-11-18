@@ -79,7 +79,7 @@ export function OrderProvider({ children }) {
   const placeOrder = async ({ order, items, payment }) => {
     const res = await fetch("/api/orders", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...authHeaders() },
       body: JSON.stringify({ order, items, payment }),
     });
     if (!res.ok) {

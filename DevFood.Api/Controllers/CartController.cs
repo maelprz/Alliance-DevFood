@@ -82,30 +82,33 @@ public class CartController(AppDbContext db) : ControllerBase
         return Ok(await Load(userId.Value));
     }
 
-    public static async Task<(Coupon? Coupon, string Error)> FindValidCoupon(AppDbContext db, string code, decimal subtotal)
-    {
-        var normalized = code.Trim().ToUpperInvariant();
-        var coupon = await db.Coupons.FirstOrDefaultAsync(c => c.Code == normalized);
-        if (coupon is null) return (null, "Invalid coupon code.");
-        if (coupon.ExpiresAt < DateOnly.FromDateTime(DateTime.UtcNow)) return (null, "This coupon has expired.");
-        if (subtotal < coupon.MinOrder)
-            return (null, $"This coupon requires a minimum order of ₱{coupon.MinOrder:0.00}.");
-        return (coupon, "");
-    }
-
+    // Preview for the "Apply Coupon" button. The discount is checked again, with the real
+    // prices, when the order is placed. Needs a login because of the per-customer limit.
+    [Authorize]
     [HttpPost("apply-coupon")]
     public async Task<IActionResult> ApplyCoupon(ApplyCouponRequest req)
     {
+        var userId = User.UserId();
+        if (userId is null) return Unauthorized();
         if (string.IsNullOrWhiteSpace(req.Code))
             return BadRequest(new { valid = false, message = "Enter a coupon code." });
-        var (coupon, error) = await FindValidCoupon(db, req.Code, req.Subtotal ?? 0);
-        if (coupon is null) return BadRequest(new { valid = false, message = error });
+
+        var result = await CouponService.Evaluate(db, req.Code, req.Subtotal ?? 0, userId.Value);
+        if (result.Coupon is null) return BadRequest(new { valid = false, message = result.Error });
+
+        var c = result.Coupon;
         return Ok(new
         {
             valid = true,
-            message = $"Coupon applied: {coupon.DiscountPercent}% off.",
-            code = coupon.Code,
-            discountPercent = coupon.DiscountPercent
+            message = $"Coupon applied: you save ₱{result.Discount:0.00}.",
+            code = c.Code,
+            description = c.Description,
+            discountType = c.DiscountType == CouponRules.Fixed ? CouponRules.Fixed : CouponRules.Percent,
+            discountPercent = c.DiscountPercent,
+            fixedAmount = c.FixedAmount,
+            maxDiscount = c.MaxDiscount,
+            minOrder = c.MinOrder,
+            discountAmount = result.Discount
         });
     }
 }
