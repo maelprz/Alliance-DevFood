@@ -94,12 +94,16 @@ public class OrdersController(AppDbContext db, IConfiguration config) : Controll
         return order is null ? NotFound(new { message = "Order not found." }) : Ok(ToDto(order));
     }
 
+    [Authorize]
     [HttpPost]
     public async Task<IActionResult> Create(OrderCreate req)
     {
         if (req.Order is null || req.Items is null || req.Items.Count == 0)
             return BadRequest(new { message = "An order needs a user and at least one item." });
-        var user = await db.Users.FindAsync(req.Order.UserId);
+        var userId = User.UserId();
+        if (userId is null) return Unauthorized();
+        if (req.Order.UserId != userId.Value) return Forbid();
+        var user = await db.Users.FindAsync(userId.Value);
         if (user is null || !user.IsActive) return NotFound(new { message = "User not found." });
         if (string.IsNullOrWhiteSpace(req.Order.DeliveryAddress))
             return BadRequest(new { message = "Delivery address is required." });
@@ -147,12 +151,13 @@ public class OrdersController(AppDbContext db, IConfiguration config) : Controll
         };
         order.Subtotal = order.Items.Sum(i => i.Price * i.Quantity);
 
+        await using var transaction = await db.Database.BeginTransactionAsync();
         if (!string.IsNullOrWhiteSpace(req.Order.CouponCode))
         {
-            var (coupon, error) = await CartController.FindValidCoupon(db, req.Order.CouponCode, order.Subtotal);
-            if (coupon is null) return BadRequest(new { message = error });
-            order.CouponCode = coupon.Code;
-            order.DiscountAmount = Math.Round(order.Subtotal * coupon.DiscountPercent / 100m, 2);
+            var result = await CouponService.Evaluate(db, req.Order.CouponCode, order.Subtotal, user.Id, lockForOrder: true);
+            if (result.Coupon is null) return BadRequest(new { message = result.Error });
+            order.CouponCode = result.Coupon.Code;
+            order.DiscountAmount = result.Discount;
         }
         order.TotalAmount = order.Subtotal - order.DiscountAmount + order.DeliveryFee;
 
@@ -170,6 +175,7 @@ public class OrdersController(AppDbContext db, IConfiguration config) : Controll
             Audience = "user"
         });
         await db.SaveChangesAsync();
+        await transaction.CommitAsync();
 
         return StatusCode(201, ToDto(order));
     }

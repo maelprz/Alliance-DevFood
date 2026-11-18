@@ -3,6 +3,14 @@ import { useNav } from "../context/useNav";
 import Navbar from "../components/Navbar";
 import { useCart } from "../context/CartContext";
 import { useApp } from "../context/useApp";
+import { authHeaders } from "../services/authService";
+import {
+  calcDiscount,
+  describeCoupon,
+  readStoredCoupon,
+  storeCoupon,
+  clearStoredCoupon,
+} from "../utils/coupon";
 
 // Cart page — Feature 3
 export default function Cart() {
@@ -13,67 +21,77 @@ export default function Cart() {
   // Redirect to login if not logged in
   useEffect(() => {
     if (!user) {
-      navigate("menu");
+      navigate("login", { replace: true });
     }
   }, [user, navigate]);
 
   // Coupon states
   const [couponCode, setCouponCode] = useState("");
   const [couponMessage, setCouponMessage] = useState("");
-  const [appliedCoupon, setAppliedCoupon] = useState(null);
+  const [selectedCoupon, setSelectedCoupon] = useState(() =>
+    readStoredCoupon(user?.id),
+  );
+  const appliedCoupon = selectedCoupon?.userId === user?.id ? selectedCoupon : null;
 
   const DELIVERY_FEE = 49.0;
 
-  const subtotal = cartItems.reduce(
-    (sum, item) => sum + item.price * item.quantity,
-    0,
+  const subtotal = Number(
+    cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0).toFixed(2),
   );
 
+  // A coupon only counts while the cart still meets its minimum order.
+  const couponBelowMin =
+    appliedCoupon && subtotal < (appliedCoupon.minOrder ?? 0);
+  const activeCoupon = appliedCoupon && !couponBelowMin ? appliedCoupon : null;
+
   // Discount calculation
-  const discountAmount = appliedCoupon ? subtotal * appliedCoupon.discount : 0;
+  const discountAmount = calcDiscount(activeCoupon, subtotal);
 
   const total =
     subtotal - discountAmount + (cartItems.length > 0 ? DELIVERY_FEE : 0);
 
-  // Coupon validator
+  // Coupon validator (the server checks dates, limits and the minimum order)
   const handleApplyCoupon = async () => {
+    if (!user) return;
+    if (!couponCode.trim()) {
+      setCouponMessage("Enter a coupon code.");
+      return;
+    }
     try {
       const res = await fetch("/api/cart/apply-coupon", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          code: couponCode,
-          subtotal,
-        }),
+        headers: { "Content-Type": "application/json", ...authHeaders() },
+        body: JSON.stringify({ code: couponCode, subtotal }),
       });
+      const data = await res.json().catch(() => ({}));
 
-      const data = await res.json();
-
-      setCouponMessage(data.message);
-
-      if (data.valid) {
-        const couponData = {
+      if (res.ok && data.valid) {
+        const coupon = {
           code: data.code,
-          discount: data.discountPercent / 100,
+          description: data.description,
+          discountType: data.discountType,
           discountPercent: data.discountPercent,
+          fixedAmount: data.fixedAmount,
+          maxDiscount: data.maxDiscount,
+          minOrder: data.minOrder,
+          userId: user.id,
         };
-
-        setAppliedCoupon(couponData);
-
-        localStorage.setItem("appliedCoupon", JSON.stringify(couponData));
+        storeCoupon(coupon);
+        setSelectedCoupon(coupon);
+        setCouponMessage("");
+        setCouponCode("");
       } else {
-        setAppliedCoupon(null);
-
-        localStorage.removeItem("appliedCoupon");
+        setCouponMessage(data.message || "Could not apply this coupon.");
       }
     } catch {
       setCouponMessage("Server error. Please try again.");
-      setAppliedCoupon(null);
-
-      localStorage.removeItem("appliedCoupon");
     }
+  };
+
+  const removeCoupon = () => {
+    clearStoredCoupon();
+    setSelectedCoupon(null);
+    setCouponMessage("");
   };
 
   return (
@@ -252,46 +270,110 @@ export default function Cart() {
 
               {/* Coupon Section */}
               <div style={{ marginTop: 20, marginBottom: 20 }}>
-                <input
-                  type="text"
-                  placeholder="Enter coupon code"
-                  value={couponCode}
-                  onChange={(e) => setCouponCode(e.target.value)}
-                  style={{
-                    width: "100%",
-                    padding: "10px",
-                    border: "1px solid #d1d5db",
-                    borderRadius: 8,
-                    marginBottom: 10,
-                    boxSizing: "border-box",
-                    fontFamily: "inherit",
-                  }}
-                />
+                {activeCoupon ? (
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      background: "#f0fdf4",
+                      border: "1px solid #bbf7d0",
+                      borderRadius: 8,
+                      padding: "10px 12px",
+                    }}
+                  >
+                    <div>
+                      <div
+                        style={{ fontWeight: 700, color: "#166534", fontSize: 14 }}
+                      >
+                        {activeCoupon.code}
+                      </div>
+                      <div style={{ fontSize: 12, color: "#15803d" }}>
+                        {describeCoupon(activeCoupon)}
+                      </div>
+                    </div>
+                    <button
+                      onClick={removeCoupon}
+                      aria-label="Remove coupon"
+                      style={{
+                        background: "none",
+                        border: "none",
+                        color: "#dc2626",
+                        fontSize: 13,
+                        fontWeight: 600,
+                        cursor: "pointer",
+                        fontFamily: "inherit",
+                      }}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <input
+                      type="text"
+                      placeholder="Enter coupon code"
+                      value={couponCode}
+                      onChange={(e) => setCouponCode(e.target.value)}
+                      style={{
+                        width: "100%",
+                        padding: "10px",
+                        border: "1px solid #d1d5db",
+                        borderRadius: 8,
+                        marginBottom: 10,
+                        boxSizing: "border-box",
+                        fontFamily: "inherit",
+                      }}
+                    />
 
-                <button
-                  onClick={handleApplyCoupon}
-                  style={{
-                    width: "100%",
-                    padding: "10px",
-                    background: "#111827",
-                    color: "#fff",
-                    border: "none",
-                    borderRadius: 8,
-                    fontSize: 14,
-                    fontWeight: 600,
-                    cursor: "pointer",
-                    fontFamily: "inherit",
-                  }}
-                >
-                  Apply Coupon
-                </button>
+                    <button
+                      onClick={handleApplyCoupon}
+                      style={{
+                        width: "100%",
+                        padding: "10px",
+                        background: "#111827",
+                        color: "#fff",
+                        border: "none",
+                        borderRadius: 8,
+                        fontSize: 14,
+                        fontWeight: 600,
+                        cursor: "pointer",
+                        fontFamily: "inherit",
+                      }}
+                    >
+                      Apply Coupon
+                    </button>
+                  </>
+                )}
+
+                {couponBelowMin && (
+                  <p style={{ marginTop: 10, fontSize: 13, color: "#c2410c" }}>
+                    Add ₱{(appliedCoupon.minOrder - subtotal).toFixed(2)} more to
+                    use {appliedCoupon.code}.{" "}
+                    <button
+                      onClick={removeCoupon}
+                      aria-label="Remove coupon"
+                      style={{
+                        background: "none",
+                        border: "none",
+                        color: "#dc2626",
+                        fontWeight: 600,
+                        cursor: "pointer",
+                        fontFamily: "inherit",
+                        padding: 0,
+                      }}
+                    >
+                      Remove
+                    </button>
+                  </p>
+                )}
 
                 {couponMessage && (
                   <p
                     style={{
                       marginTop: 10,
                       fontSize: 13,
-                      color: appliedCoupon ? "#16a34a" : "#dc2626",
+                      color: activeCoupon ? "#16a34a" : "#dc2626",
                     }}
                   >
                     {couponMessage}
@@ -301,7 +383,7 @@ export default function Cart() {
 
               <p>Subtotal: ₱{subtotal.toFixed(2)}</p>
 
-              {appliedCoupon && (
+              {activeCoupon && (
                 <p style={{ color: "#16a34a", fontWeight: 600 }}>
                   Discount: -₱{discountAmount.toFixed(2)}
                 </p>

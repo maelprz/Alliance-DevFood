@@ -7,6 +7,11 @@ import Navbar from "./Navbar";
 import AddressPicker from "./AddressPicker";
 import { MAX_DELIVERY_KM } from "../constants/delivery";
 import { formatDeliveryAddress } from "../utils/geo";
+import {
+  calcDiscount,
+  readStoredCoupon,
+  clearStoredCoupon,
+} from "../utils/coupon";
 
 // Inline SVG payment-method icons — render identically across OS/browsers.
 function PaymentIcon({ kind, color = "#374151" }) {
@@ -57,6 +62,7 @@ export default function Checkout() {
   const [error, setError] = useState(null);
   const [showConfirm, setShowConfirm] = useState(false);
   const [fieldErrors, setFieldErrors] = useState({});
+  const [savedCoupon, setSavedCoupon] = useState(() => readStoredCoupon(user?.id));
   // Delivery location from the map picker (null until a pin resolves).
   const [location, setLocation] = useState(null);
   // Saved profile address is only used to pre-place the pin.
@@ -116,17 +122,17 @@ export default function Checkout() {
 
   const DELIVERY_FEE = 49.0;
 
-  const subtotal = lineItems.reduce((sum, li) => sum + li.subtotal, 0);
+  const subtotal = Number(lineItems.reduce((sum, li) => sum + li.subtotal, 0).toFixed(2));
 
-  // Get applied coupon from localStorage
-  const appliedCoupon = JSON.parse(
-    localStorage.getItem("appliedCoupon") || "null",
-  );
+  // Coupon applied in the Cart. It only counts while the cart still meets its
+  // minimum order; the server checks it again when the order is placed.
+  const appliedCoupon =
+    savedCoupon && savedCoupon.userId === user?.id && subtotal >= (savedCoupon.minOrder ?? 0)
+      ? savedCoupon
+      : null;
 
   // Calculate discount
-  const discountAmount = appliedCoupon
-    ? subtotal * (appliedCoupon.discountPercent / 100)
-    : 0;
+  const discountAmount = calcDiscount(appliedCoupon, subtotal);
 
   // Final total after discount + delivery fee
   const total_amount = subtotal - discountAmount + DELIVERY_FEE;
@@ -173,11 +179,17 @@ export default function Checkout() {
 
       await placeOrder({ order, items, payment });
 
-      localStorage.removeItem("appliedCoupon");
+      clearStoredCoupon();
       clearCart();
       setPlaced(true);
       setTimeout(() => navigate("track"), 700);
     } catch (err) {
+      // A coupon the server rejects (used up, expired, ...) is dropped so the
+      // customer can try again without it.
+      if (/coupon/i.test(err.message || "")) {
+        clearStoredCoupon();
+        setSavedCoupon(null);
+      }
       setError(err.message || "Failed to place order. Please try again.");
     } finally {
       setLoading(false);
