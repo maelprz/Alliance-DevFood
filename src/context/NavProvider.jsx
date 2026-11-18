@@ -8,20 +8,25 @@ import { NavContext } from "./NavContext";
 // View is persisted in sessionStorage so a page refresh keeps the user where
 // they were. Cleared automatically when the tab closes (sessionStorage scope).
 //
-// The Cart page also has its own address: http://localhost:5173/cart.
-// Every other page stays on "/". To give another page its own address later,
-// add it to VIEW_PATHS below.
+// Menu categories and the Cart page have their own addresses. Other views stay
+// on "/" and are preserved in history state.
 const VIEW_KEY = "devfood:view";
 const VIEW_PATHS = new Map([["cart", "/cart"]]);
 const currentPath = () => window.location.pathname.replace(/\/+$/, "") || "/";
+const categorySlug = (category) =>
+  category.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 
-// The view the address bar asks for, or null when it is just "/".
-const viewFromUrl = () => {
+// The view and optional category the address bar asks for.
+const routeFromUrl = () => {
   if (new URLSearchParams(window.location.search).has("reset_token")) {
-    return "reset-password";
+    return { view: "reset-password", menuCategory: null };
+  }
+  const menuMatch = currentPath().match(/^\/menu(?:\/([a-z0-9-]+))?$/);
+  if (menuMatch) {
+    return { view: "menu", menuCategory: menuMatch[1] ?? null };
   }
   for (const [view, path] of VIEW_PATHS) {
-    if (currentPath() === path) return view;
+    if (currentPath() === path) return { view, menuCategory: null };
   }
   return null;
 };
@@ -29,12 +34,19 @@ const viewFromUrl = () => {
 export function NavProvider({ children }) {
   const [view, setView] = useState(() => {
     try {
-      const fromUrl = viewFromUrl();
-      if (fromUrl) return fromUrl;
+      const fromUrl = routeFromUrl();
+      if (fromUrl) return fromUrl.view;
       const saved = window.history.state?.devfoodView ?? sessionStorage.getItem(VIEW_KEY);
       return saved && !VIEW_PATHS.has(saved) ? saved : "menu";
     } catch {
       return "menu";
+    }
+  });
+  const [menuCategory, setMenuCategory] = useState(() => {
+    try {
+      return routeFromUrl()?.menuCategory ?? null;
+    } catch {
+      return null;
     }
   });
 
@@ -47,15 +59,22 @@ export function NavProvider({ children }) {
   }, [view]);
 
   useEffect(() => {
-    const onPopState = (event) => setView(viewFromUrl() ?? event.state?.devfoodView ?? "menu");
+    const onPopState = (event) => {
+      const route = routeFromUrl();
+      setView(route?.view ?? event.state?.devfoodView ?? "menu");
+      setMenuCategory(route?.menuCategory ?? event.state?.devfoodCategory ?? null);
+    };
     window.addEventListener("popstate", onPopState);
     return () => window.removeEventListener("popstate", onPopState);
   }, []);
 
-  const navigate = useCallback((to, { replace = false } = {}) => {
-    const wanted = VIEW_PATHS.get(to) ?? "/";
+  const navigate = useCallback((to, { replace = false, category = null } = {}) => {
+    const slug = category ? categorySlug(category) : null;
+    const wanted = to === "menu"
+      ? slug ? `/menu/${slug}` : "/menu"
+      : VIEW_PATHS.get(to) ?? "/";
     const currentEntry = { ...window.history.state, devfoodView: view };
-    const nextEntry = { devfoodView: to };
+    const nextEntry = { devfoodView: to, devfoodCategory: slug };
     const url = to === "reset-password" ? wanted + window.location.search : wanted;
 
     if (!replace && currentPath() !== wanted) {
@@ -65,10 +84,11 @@ export function NavProvider({ children }) {
       window.history.replaceState({ ...currentEntry, ...nextEntry }, "", url);
     }
     setView(to);
+    setMenuCategory(to === "menu" ? slug : null);
   }, [view]);
 
   return (
-    <NavContext.Provider value={{ view, navigate }}>
+    <NavContext.Provider value={{ view, menuCategory, navigate }}>
       {children}
     </NavContext.Provider>
   );
