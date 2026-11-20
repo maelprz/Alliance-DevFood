@@ -40,7 +40,7 @@ export default function Admin() {
   const [menuSaving, setMenuSaving] = useState(false);
   useEffect(() => {
     if (menuNotice === null) return;
-    if (menuNotice.text !== "Item availability updated.") return;
+    if (menuNotice.type !== "success") return;
     const timer = setTimeout(() => setMenuNotice(null), 3000);
     return () => clearTimeout(timer);
   }, [menuNotice]);
@@ -52,6 +52,15 @@ export default function Admin() {
   });
   const [image, setImage] = useState(null);
   const [preview, setPreview] = useState(null);
+
+  useEffect(() => {
+    return () => {
+      if (preview !== null && preview.startsWith("blob:")) {
+        URL.revokeObjectURL(preview);
+      }
+    };
+  }, [preview]);
+
   const [orderError, setOrderError] = useState("");
   const [selectedOrders, setSelectedOrders] = useState([]);
   const [showOrderDeleteConfirm, setShowOrderDeleteConfirm] = useState(false);
@@ -213,9 +222,8 @@ export default function Admin() {
     return "Something went wrong. Please try again.";
   };
 
-  const handleToggleStock = async (foodId) => {
-    const item = contextMenuItems.find((food) => food.food_id === foodId);
-    if (item == null) return;
+  const handleToggleStock = async (item) => {
+    const foodId = item.food_id;
 
     let availability = true;
     if (item.availability === true) {
@@ -235,6 +243,10 @@ export default function Admin() {
       });
       const savedItem = await readMenuResponse(response);
       setContextMenuItems((currentItems) => currentItems.map((food) => {
+        if (food.food_id === foodId) return savedItem;
+        return food;
+      }));
+      setFilteredMenuItems((currentItems) => currentItems.map((food) => {
         if (food.food_id === foodId) return savedItem;
         return food;
       }));
@@ -264,6 +276,8 @@ export default function Admin() {
 
   const startEdit = (item) => {
     setEditingItem(item);
+    setImage(null);
+    setPreview(item.image || null);
     setFormData({
       name: item.name,
       price: String(item.price),
@@ -350,21 +364,38 @@ export default function Admin() {
       return;
     }
 
+    if (Number(price.toFixed(2)) !== price) {
+      setMenuNotice({ type: "error", text: "Price can have at most two decimal places." });
+      return;
+    }
+
     if (image && image.size > 5 * 1024 * 1024) {
       setMenuNotice({ type: "error", text: "Please choose an image smaller than 5 MB." });
       return;
     }
 
-    const item = new FormData();
-    item.append("Name", formData.name.trim());
-    item.append("Price", String(price));
-    item.append("Category", formData.category);
-    item.append("Description", formData.description.trim());
-    if (image) item.append("imageFile", image);
+    const item = {
+      name: formData.name.trim(),
+      price,
+      category: formData.category,
+      description: formData.description.trim(),
+    };
 
     setMenuSaving(true);
 
     try {
+      if (image !== null) {
+        const imageData = new FormData();
+        imageData.append("imageFile", image);
+        const uploadResponse = await fetch("/api/menu/image", {
+          method: "POST",
+          headers: authHeaders("admin"),
+          body: imageData,
+        });
+        const uploadedImage = await readMenuResponse(uploadResponse);
+        item.image = uploadedImage.image;
+      }
+
       let url = "/api/menu";
       let method = "POST";
       let message = "Menu item added.";
@@ -378,9 +409,10 @@ export default function Admin() {
       const response = await fetch(url, {
         method,
         headers: {
+          "Content-Type": "application/json",
           ...authHeaders("admin"),
         },
-        body: item,
+        body: JSON.stringify(item),
       });
       const savedItem = await readMenuResponse(response);
 
@@ -391,6 +423,7 @@ export default function Admin() {
         }));
       } else {
         setContextMenuItems((currentItems) => [savedItem, ...currentItems]);
+        setSelectedCategory("All");
         setMenuPage(1);
       }
 
@@ -576,13 +609,22 @@ export default function Admin() {
                 </select>
 
                 {selectedOrders.length > 0 && (
-                  <button type="button" onClick={() => setShowOrderDeleteConfirm(true)} style={{
-                    padding: "10px 16px", border: "1px solid #fecaca", borderRadius: 8,
-                    background: "#fef2f2", color: "#b91c1c", fontWeight: 600,
-                    fontSize: 14, cursor: "pointer", fontFamily: "inherit",
-                  }}>
-                    Delete Selected ({selectedOrders.length})
-                  </button>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <button type="button" onClick={() => setSelectedOrders([])} style={{
+                      padding: "10px 16px", border: "1px solid #d1d5db", borderRadius: 8,
+                      background: "#fff", color: "#374151", fontWeight: 600,
+                      fontSize: 14, cursor: "pointer", fontFamily: "inherit",
+                    }}>
+                      Clear Selected
+                    </button>
+                    <button type="button" onClick={() => setShowOrderDeleteConfirm(true)} style={{
+                      padding: "10px 16px", border: "1px solid #fecaca", borderRadius: 8,
+                      background: "#fef2f2", color: "#b91c1c", fontWeight: 600,
+                      fontSize: 14, cursor: "pointer", fontFamily: "inherit",
+                    }}>
+                      Delete Selected ({selectedOrders.length})
+                    </button>
+                  </div>
                 )}
 
 
@@ -905,7 +947,7 @@ export default function Admin() {
                   {menuNotice && menuNotice.type === "error" && (
                     <p role="alert" style={{ color: "#991b1b" }}>{menuNotice.text}</p>
                   )}
-                  <form onSubmit={handleSubmitItem}>
+                  <form noValidate onSubmit={handleSubmitItem}>
                     <div
                       style={{
                         display: "grid",
@@ -1042,6 +1084,11 @@ export default function Admin() {
                       >
                         Image
                       </label>
+                      {editingItem !== null && (
+                        <p style={{ fontSize: 12, color: "#6b7280", margin: "0 0 8px" }}>
+                          Choose a new image only if you want to replace the current one.
+                        </p>
+                      )}
                       <input
                         type="file"
                         accept="image/*"
@@ -1058,7 +1105,7 @@ export default function Admin() {
                       {preview && (
                         <img
                           src={preview}
-                          alt="preview"
+                          alt="Menu item image preview"
                           style={{
                             width: 120,
                             height: 120,
@@ -1239,7 +1286,7 @@ export default function Admin() {
                             <input
                               type="checkbox"
                               checked={!item.availability}
-                              onChange={() => handleToggleStock(item.food_id)}
+                              onChange={() => handleToggleStock(item)}
                               style={{
                                 accentColor: "#ef4444",
                                 width: 16,
@@ -1375,13 +1422,30 @@ export default function Admin() {
               position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)",
               display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999,
             }}>
-              <div style={{ background: "#fff", padding: 24, borderRadius: 14, width: "min(360px, 90vw)" }}>
-                <p>Change order #{pendingStatus.orderId} from {pendingStatus.oldStatus} to {pendingStatus.newStatus}?</p>
-                <button type="button" onClick={() => {
-                  handleStatusChange(pendingStatus.orderId, pendingStatus.newStatus);
-                  setPendingStatus(null);
-                }}>Confirm</button>
-                <button type="button" onClick={() => setPendingStatus(null)} style={{ marginLeft: 10 }}>Cancel</button>
+              <div style={{ background: "#fff", padding: 24, borderRadius: 14, width: "min(400px, 90vw)", boxShadow: "0 10px 30px rgba(0,0,0,0.15)" }}>
+                <h2 style={{ fontSize: 18, margin: "0 0 12px", color: "#111827" }}>Update order status?</h2>
+                <p style={{ color: "#374151", lineHeight: 1.5 }}>
+                  Change order <strong>#{pendingStatus.orderId}</strong> from <strong>{pendingStatus.oldStatus}</strong> to <strong>{pendingStatus.newStatus}</strong>?
+                </p>
+                <div style={{ display: "flex", justifyContent: "flex-end", gap: 12, marginTop: 24 }}>
+                  <button type="button" onClick={() => setPendingStatus(null)} style={{
+                    padding: "10px 18px", border: "1px solid #d1d5db", borderRadius: 8,
+                    background: "#fff", color: "#374151", fontSize: 14,
+                    fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
+                  }}>
+                    Cancel
+                  </button>
+                  <button type="button" onClick={() => {
+                    handleStatusChange(pendingStatus.orderId, pendingStatus.newStatus);
+                    setPendingStatus(null);
+                  }} style={{
+                    padding: "10px 18px", border: "1px solid #FF5A36", borderRadius: 8,
+                    background: "#FF5A36", color: "#fff", fontSize: 14,
+                    fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
+                  }}>
+                    Update status
+                  </button>
+                </div>
               </div>
             </div>
           )}

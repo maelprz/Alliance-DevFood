@@ -58,6 +58,36 @@ public class CouponsController(AppDbContext db) : ControllerBase
         return Ok(coupons.Select(c => ToDto(c, used.GetValueOrDefault(c.Code))));
     }
 
+    [HttpGet("admin-page")]
+    public async Task<IActionResult> GetAdminPage([FromQuery] int page = 1)
+    {
+        const int pageSize = 5;
+        var total = await db.Coupons.CountAsync();
+        var totalPages = Math.Max(1, (int)Math.Ceiling(total / (double)pageSize));
+        var currentPage = Math.Clamp(page, 1, totalPages);
+        var coupons = await db.Coupons
+            .OrderByDescending(coupon => coupon.Id)
+            .Skip((currentPage - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+
+        var used = await db.Orders
+            .Where(order => order.CouponCode != null && order.Status != "Cancelled")
+            .GroupBy(order => order.CouponCode)
+            .Select(group => new { Code = group.Key, Count = group.Count() })
+            .ToListAsync();
+
+        var items = coupons.Select(coupon =>
+        {
+            var timesUsed = 0;
+            var matching = used.FirstOrDefault(entry => entry.Code == coupon.Code);
+            if (matching is not null) timesUsed = matching.Count;
+            return ToDto(coupon, timesUsed);
+        });
+
+        return Ok(new { items, total, page = currentPage, totalPages });
+    }
+
     [HttpPost]
     public async Task<IActionResult> Create(CouponCreate req)
     {

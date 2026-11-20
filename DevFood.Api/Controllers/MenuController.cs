@@ -12,7 +12,7 @@ public record MenuWrite(
 
 [ApiController]
 [Route("api/menu")]
-public class MenuController(AppDbContext db) : ControllerBase
+public class MenuController(AppDbContext db, IWebHostEnvironment environment) : ControllerBase
 {
     private static readonly string[] Categories =
     [
@@ -56,21 +56,95 @@ public class MenuController(AppDbContext db) : ControllerBase
         var totalPages = Math.Max(1, (int)Math.Ceiling(total / (double)pageSize));
         var currentPage = Math.Clamp(page, 1, totalPages);
         var items = await query
-            .OrderByDescending(item => item.Category == "Burger")
-            .ThenByDescending(item => item.Category == "Sandwich")
-            .ThenByDescending(item => item.Category == "Chicken")
-            .ThenByDescending(item => item.Category == "Pizzas")
-            .ThenByDescending(item => item.Category == "Rice Meals")
-            .ThenByDescending(item => item.Category == "Snacks")
-            .ThenByDescending(item => item.Category == "Spaghetti")
-            .ThenByDescending(item => item.Category == "Dessert")
-            .ThenByDescending(item => item.Category == "Drinks")
-            .ThenByDescending(item => item.Id)
+            .OrderByDescending(item => item.Id)
             .Skip((currentPage - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync();
 
         return Ok(new { items = items.Select(ToDto), total, page = currentPage, totalPages });
+    }
+
+    private static bool HasImageSignature(string contentType, byte[] header, int length)
+    {
+        if (contentType == "image/jpeg" && length >= 3)
+        {
+            return header[0] == 0xFF && header[1] == 0xD8 && header[2] == 0xFF;
+        }
+
+        if (contentType == "image/png" && length >= 8)
+        {
+            byte[] png = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
+            return header.Take(8).SequenceEqual(png);
+        }
+
+        if (contentType == "image/gif" && length >= 6)
+        {
+            var signature = System.Text.Encoding.ASCII.GetString(header, 0, 6);
+            return signature == "GIF87a" || signature == "GIF89a";
+        }
+
+        if (contentType == "image/webp" && length >= 12)
+        {
+            var riff = System.Text.Encoding.ASCII.GetString(header, 0, 4);
+            var webp = System.Text.Encoding.ASCII.GetString(header, 8, 4);
+            return riff == "RIFF" && webp == "WEBP";
+        }
+
+        return false;
+    }
+
+    [Authorize(Roles = "admin")]
+    [HttpPost("image")]
+    [RequestSizeLimit(5 * 1024 * 1024 + 65536)]
+    public async Task<IActionResult> UploadImage([FromForm] IFormFile? imageFile)
+    {
+        if (imageFile is null || imageFile.Length == 0 || imageFile.Length > 5 * 1024 * 1024)
+        {
+            return BadRequest(new { message = "Choose an image up to 5 MB." });
+        }
+
+        var extension = "";
+        if (imageFile.ContentType == "image/jpeg") extension = ".jpg";
+        if (imageFile.ContentType == "image/png") extension = ".png";
+        if (imageFile.ContentType == "image/gif") extension = ".gif";
+        if (imageFile.ContentType == "image/webp") extension = ".webp";
+
+        if (extension == "")
+        {
+            return BadRequest(new { message = "Choose a JPG, PNG, GIF, or WebP image." });
+        }
+
+        var header = new byte[12];
+        int bytesRead;
+        await using (var input = imageFile.OpenReadStream())
+        {
+            bytesRead = await input.ReadAtLeastAsync(header, header.Length, false);
+        }
+
+        if (HasImageSignature(imageFile.ContentType, header, bytesRead) == false)
+        {
+            return BadRequest(new { message = "The file contents do not match the selected image type." });
+        }
+
+        var fileName = Guid.NewGuid().ToString("N") + extension;
+        var folder = Path.Combine(environment.ContentRootPath, "wwwroot", "uploads", "menu");
+        var filePath = Path.Combine(folder, fileName);
+        try
+        {
+            Directory.CreateDirectory(folder);
+            await using var stream = new FileStream(filePath, FileMode.CreateNew);
+            await imageFile.CopyToAsync(stream);
+        }
+        catch (IOException)
+        {
+            return StatusCode(503, new { message = "The image folder is unavailable. Please try again." });
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return StatusCode(503, new { message = "The backend cannot write to the image folder." });
+        }
+
+        return Ok(new { image = "/uploads/menu/" + fileName });
     }
 
     [Authorize(Roles = "admin")]
@@ -110,6 +184,11 @@ public class MenuController(AppDbContext db) : ControllerBase
         if (request.Price.Value < 0 || request.Price.Value > 9999m)
         {
             return BadRequest(new { message = "Price must be between 0 and 9999." });
+        }
+
+        if (decimal.Round(request.Price.Value, 2) != request.Price.Value)
+        {
+            return BadRequest(new { message = "Price can have at most two decimal places." });
         }
 
         var item = new MenuItem
@@ -182,6 +261,11 @@ public class MenuController(AppDbContext db) : ControllerBase
             if (request.Price.Value < 0 || request.Price.Value > 9999m)
             {
                 return BadRequest(new { message = "Price must be between 0 and 9999." });
+            }
+
+            if (decimal.Round(request.Price.Value, 2) != request.Price.Value)
+            {
+                return BadRequest(new { message = "Price can have at most two decimal places." });
             }
 
             item.Price = request.Price.Value;

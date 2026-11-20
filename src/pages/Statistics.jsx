@@ -50,7 +50,7 @@ export default function Statistics() {
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(4, 1fr)",
+          gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
           gap: 20,
           marginBottom: 40,
         }}
@@ -177,59 +177,71 @@ export default function Statistics() {
       </div>
 
       {/* Revenue */}
-      <div
-        style={{
-          width: "100%",
-          height: 350,
-          background: "#fff",
-          border: "1px solid #e5e7eb",
-          borderRadius: 12,
-          padding: 20,
-          marginBottom: 40,
-        }}
-      >
-        <h3 style={{ marginBottom: 20 }}>Revenue Tracking</h3>
-        <p>Shown by Philippine delivery date. Older orders without a delivery date use their order date.</p>
+      <div style={{
+        width: "100%", boxSizing: "border-box", background: "#fff",
+        border: "1px solid #e5e7eb", borderRadius: 12, padding: 20, marginBottom: 24,
+      }}>
+        <h3 style={{ margin: "0 0 8px" }}>Revenue Tracking - Last 30 Days</h3>
+        <p style={{ color: "#6b7280", fontSize: 13, margin: "0 0 20px" }}>
+          Delivered and paid orders by Philippine delivery date. Older orders without a delivery date use their order date.
+        </p>
 
-        <ResponsiveContainer>
-          <LineChart data={revenueData}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="date" />
-            <YAxis />
-            <Tooltip />
+        {revenueData.length === 0 && (
+          <div style={{
+            minHeight: 180, display: "flex", alignItems: "center",
+            justifyContent: "center", textAlign: "center", color: "#6b7280",
+          }}>
+            No revenue yet. Delivered and paid orders will appear here.
+          </div>
+        )}
 
-            <Line
-              type="monotone"
-              dataKey="revenue"
-              stroke="#FF5A36"
-              strokeWidth={3}
-            />
-          </LineChart>
-        </ResponsiveContainer>
+        {revenueData.length > 0 && (
+          <div style={{ width: "100%", height: 260 }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={revenueData} margin={{ top: 10, right: 20, bottom: 5, left: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="date" tick={{ fontSize: 12 }} minTickGap={32} />
+                <YAxis tick={{ fontSize: 12 }} />
+                <Tooltip />
+                <Line type="monotone" dataKey="revenue" stroke="#FF5A36" strokeWidth={3} dot />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        )}
       </div>
 
       {/* Most ordered items */}
-      <div
-        style={{
-          width: "100%",
-          height: 350,
-          background: "#fff",
-          border: "1px solid #e5e7eb",
-          borderRadius: 12,
-          padding: 20,
-        }}
-      >
-        <h3 style={{ marginBottom: 20 }}>Best-Selling Items</h3>
+      <div style={{
+        width: "100%", boxSizing: "border-box", background: "#fff",
+        border: "1px solid #e5e7eb", borderRadius: 12, padding: 20,
+      }}>
+        <h3 style={{ margin: "0 0 8px" }}>Best-Selling Items</h3>
+        <p style={{ color: "#6b7280", fontSize: 13, margin: "0 0 20px" }}>
+          Top 5 items from delivered and paid orders.
+        </p>
 
-        <ResponsiveContainer>
-          <BarChart data={foodData}>
-            <XAxis dataKey="name" />
-            <YAxis />
-            <Tooltip />
+        {foodData.length === 0 && (
+          <div style={{
+            minHeight: 180, display: "flex", alignItems: "center",
+            justifyContent: "center", textAlign: "center", color: "#6b7280",
+          }}>
+            No best-selling items yet. Items from delivered and paid orders will appear here.
+          </div>
+        )}
 
-            <Bar dataKey="quantity" fill="#FF5A36" />
-          </BarChart>
-        </ResponsiveContainer>
+        {foodData.length > 0 && (
+          <div style={{ width: "100%", height: 280 }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={foodData} margin={{ top: 10, right: 20, bottom: 5, left: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
+                <Tooltip />
+                <Bar dataKey="quantity" fill="#FF5A36" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        )}
       </div>
     </div>
   );

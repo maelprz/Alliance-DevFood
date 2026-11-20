@@ -36,9 +36,14 @@ function formatDate(value) {
 
 export default function CouponManager() {
   const [coupons, setCoupons] = useState([]);
+  const [couponPage, setCouponPage] = useState(1);
+  const [totalCouponPages, setTotalCouponPages] = useState(1);
+  const [totalCoupons, setTotalCoupons] = useState(0);
   const [message, setMessage] = useState(null); // { type: "ok" | "error", text }
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
+  const [couponToDelete, setCouponToDelete] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
   const isPercent = form.discountType === "percent";
 
@@ -53,13 +58,18 @@ export default function CouponManager() {
 
   useEffect(() => {
     let ignore = false;
-    fetch("/api/coupons", { headers: authHeaders("admin") })
+    fetch("/api/coupons/admin-page?page=" + couponPage, { headers: authHeaders("admin") })
       .then((res) => {
         if (!res.ok) throw new Error("load failed");
         return res.json();
       })
       .then((data) => {
-        if (!ignore) setCoupons(data);
+        if (ignore === false) {
+          setCoupons(data.items);
+          setTotalCoupons(data.total);
+          setTotalCouponPages(data.totalPages);
+          if (data.page !== couponPage) setCouponPage(data.page);
+        }
       })
       .catch(() => {
         if (ignore) return;
@@ -72,7 +82,7 @@ export default function CouponManager() {
     return () => {
       ignore = true;
     };
-  }, [reload]);
+  }, [reload, couponPage]);
 
   function validate() {
     if (!form.code.trim()) return "Enter a coupon code.";
@@ -138,6 +148,7 @@ export default function CouponManager() {
         return;
       }
       setForm(EMPTY_FORM);
+      setCouponPage(1);
       refresh();
       show("ok", `Coupon ${data.code} added.`);
     } catch {
@@ -164,22 +175,28 @@ export default function CouponManager() {
     }
   }
 
-  async function deleteCoupon(code) {
-    if (!window.confirm(`Delete coupon ${code}? Customers will no longer be able to use it.`)) {
-      return;
-    }
+  async function deleteCoupon() {
+    if (couponToDelete === null) return;
+    setDeleting(true);
     try {
-      const res = await fetch(`/api/coupons/${encodeURIComponent(code)}`, {
+      const res = await fetch(`/api/coupons/${encodeURIComponent(couponToDelete)}`, {
         method: "DELETE",
         headers: authHeaders("admin"),
       });
-      if (!res.ok) {
-        show("error", "Failed to delete coupon. Please check your admin login.");
+      const data = await res.json().catch(() => ({}));
+      if (res.ok === false) {
+        setCouponToDelete(null);
+        show("error", data.message || "Failed to delete coupon. Please try again.");
         return;
       }
+      setCouponToDelete(null);
       refresh();
+      show("ok", "Coupon deleted.");
     } catch {
+      setCouponToDelete(null);
       show("error", "Server error. Please try again.");
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -489,7 +506,7 @@ export default function CouponManager() {
                       {coupon.isDisabled ? "Enable" : "Disable"}
                     </button>
                     <button
-                      onClick={() => deleteCoupon(coupon.code)}
+                      onClick={() => setCouponToDelete(coupon.code)}
                       style={{
                         padding: "8px 14px",
                         border: "1px solid #fecaca",
@@ -509,7 +526,43 @@ export default function CouponManager() {
             })}
           </tbody>
         </table>
+        {totalCoupons > 0 && (
+          <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 16, padding: 16 }}>
+            <button type="button" onClick={() => setCouponPage(couponPage - 1)} disabled={couponPage === 1}>
+              Previous
+            </button>
+            <span>Page {couponPage} of {totalCouponPages}</span>
+            <button type="button" onClick={() => setCouponPage(couponPage + 1)} disabled={couponPage >= totalCouponPages}>
+              Next
+            </button>
+          </div>
+        )}
       </div>
+
+      {couponToDelete !== null && (
+        <div role="dialog" aria-modal="true" aria-labelledby="delete-coupon-title" style={{
+          position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)",
+          display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999,
+        }}>
+          <div style={{ background: "#fff", padding: 24, borderRadius: 14, width: "min(400px, 90vw)" }}>
+            <h2 id="delete-coupon-title" style={{ fontSize: 18, margin: "0 0 12px" }}>Delete coupon?</h2>
+            <p>Delete <strong>{couponToDelete}</strong>? Customers will no longer be able to use it.</p>
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 12, marginTop: 24 }}>
+              <button type="button" onClick={() => setCouponToDelete(null)} disabled={deleting} style={{
+                padding: "10px 18px", border: "1px solid #d1d5db", borderRadius: 8,
+                background: "#fff", color: "#374151", fontWeight: 600, cursor: "pointer",
+              }}>Cancel</button>
+              <button type="button" onClick={deleteCoupon} disabled={deleting} style={{
+                padding: "10px 18px", border: "1px solid #dc2626", borderRadius: 8,
+                background: "#dc2626", color: "#fff", fontWeight: 600, cursor: "pointer",
+              }}>
+                {deleting && "Deleting..."}
+                {deleting === false && "Delete coupon"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

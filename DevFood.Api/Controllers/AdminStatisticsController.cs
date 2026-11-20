@@ -29,14 +29,23 @@ public class AdminStatisticsController(AppDbContext db) : ControllerBase
             .Where(order => order.Status == "Delivered" && order.Payment != null && order.Payment.Status == "Paid")
             .ToList();
 
-        var revenueData = paidOrders
+        var revenueByDate = paidOrders
             .GroupBy(RevenueDate)
-            .OrderBy(group => group.Key)
-            .Select(group => new
+            .ToDictionary(group => group.Key, group => group.Sum(order => order.TotalAmount));
+
+        var today = DateTime.UtcNow.AddHours(8).Date;
+        var revenueData = new List<object>();
+        for (var daysAgo = 29; daysAgo >= 0; daysAgo = daysAgo - 1)
+        {
+            var date = today.AddDays(0 - daysAgo);
+            decimal revenue = 0;
+            if (revenueByDate.TryGetValue(date, out var amount))
             {
-                date = group.Key.ToString("yyyy-MM-dd"),
-                revenue = group.Sum(order => order.TotalAmount)
-            });
+                revenue = amount;
+            }
+
+            revenueData.Add(new { date = date.ToString("yyyy-MM-dd"), revenue });
+        }
 
         var items = paidOrders.SelectMany(order => order.Items).ToList();
         var foodData = items
@@ -55,7 +64,9 @@ public class AdminStatisticsController(AppDbContext db) : ControllerBase
                     name = group.Key,
                     quantity = group.Sum(item => item.Quantity)
                 }))
-            .OrderByDescending(item => item.quantity);
+            .OrderByDescending(item => item.quantity)
+            .ThenBy(item => item.name)
+            .Take(5);
 
         return Ok(new
         {
