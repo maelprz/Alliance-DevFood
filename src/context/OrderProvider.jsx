@@ -1,10 +1,16 @@
 import { useState, useEffect, useCallback } from "react";
 import { OrderContext } from "./OrderContext";
 import { useApp } from "./useApp";
-import { authHeaders } from "../services/authService";
+import {
+  fetchAllOrders,
+  fetchActiveOrder,
+  createOrder,
+  cancelOrderRequest,
+  splitOrderRecord,
+} from "../services/orderService";
 
-// Server-backed order persistence (server/orders.json), mirroring users.json.
-// Each mutation round-trips through Express; local state mirrors the server response.
+// Holds the customer's active order. All /api/orders calls go through
+// services/orderService.js; local state mirrors the server response.
 export function OrderProvider({ children }) {
   const { user } = useApp();
 
@@ -18,14 +24,9 @@ export function OrderProvider({ children }) {
 
   // Refresh the admin-facing "all orders" list from the server.
   const refreshAllOrders = useCallback(async () => {
-    try {
-      const res = await fetch("/api/orders");
-      if (!res.ok) return;
-      const all = await res.json();
-      setOrders(all);
-    } catch {
-      // Network failure — keep stale local copy.
-    }
+    const all = await fetchAllOrders();
+    // null = request failed — keep stale local copy.
+    if (all) setOrders(all);
   }, []);
 
   // Reset the active-order slice. Extracted into a callback so the linter
@@ -43,8 +44,7 @@ export function OrderProvider({ children }) {
   // which the linter accepts as canonical "sync external system → React".
   const hydrateActiveOrder = useCallback((userId) => {
     setLoadingActive(true);
-    fetch(`/api/orders/active?user_id=${encodeURIComponent(userId)}`)
-      .then((r) => r.json())
+    fetchActiveOrder(userId)
       .then((record) => {
         if (!record) {
           setActiveOrder(null);
@@ -52,10 +52,10 @@ export function OrderProvider({ children }) {
           setActivePayment(null);
           return;
         }
-        const { items, payment, ...order } = record;
+        const { order, items, payment } = splitOrderRecord(record);
         setActiveOrder(order);
-        setOrderItems(items ?? []);
-        setActivePayment(payment ?? null);
+        setOrderItems(items);
+        setActivePayment(payment);
       })
       .catch(() => {})
       .finally(() => setLoadingActive(false));
@@ -77,21 +77,13 @@ export function OrderProvider({ children }) {
   // items: [{ order_item_id, order_id, food_id, quantity }] — maps to OrderItem
   // payment: { payment_method: "cod" } — the server creates the Payment row (status Unpaid)
   const placeOrder = async ({ order, items, payment }) => {
-    const res = await fetch("/api/orders", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", ...authHeaders() },
-      body: JSON.stringify({ order, items, payment }),
-    });
-    if (!res.ok) {
-      // Surface the server's reason (item sold out, invalid coupon, ...).
-      const data = await res.json().catch(() => ({}));
-      throw new Error(data.message || "Failed to place your order. Please try again.");
-    }
-    const saved = await res.json();
-    const { items: savedItems, payment: savedPayment, ...savedOrder } = saved;
+    // Throws with the server's reason (item sold out, invalid coupon, ...).
+    const saved = await createOrder({ order, items, payment });
+    const { order: savedOrder, items: savedItems, payment: savedPayment } =
+      splitOrderRecord(saved);
     setActiveOrder(savedOrder);
-    setOrderItems(savedItems ?? []);
-    setActivePayment(savedPayment ?? null);
+    setOrderItems(savedItems);
+    setActivePayment(savedPayment);
     refreshAllOrders();
   };
 
@@ -100,19 +92,8 @@ export function OrderProvider({ children }) {
   // customers can only cancel while the order is still "Pending".
   const cancelOrder = async () => {
     if (!activeOrder) return { success: false, message: "No active order." };
-    try {
-      const res = await fetch(`/api/orders/${activeOrder.order_id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json", ...authHeaders() },
-        body: JSON.stringify({ status: "Cancelled" }),
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        return { success: false, message: data.message || "Cancel failed." };
-      }
-    } catch {
-      return { success: false, message: "Network error while cancelling." };
-    }
+    const result = await cancelOrderRequest(activeOrder.order_id);
+    if (!result.success) return result;
     setActiveOrder(null);
     setOrderItems([]);
     setActivePayment(null);

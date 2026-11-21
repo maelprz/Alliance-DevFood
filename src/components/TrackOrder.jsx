@@ -1,7 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useOrder } from "../context/useOrder";
 import { useNav } from "../context/useNav";
 import { useMenu } from "../hooks/useMenu";
+import { useOrderStatus } from "../hooks/useOrderStatus";
 import Navbar from "./Navbar";
 import DeliveryMap from "./DeliveryMap";
 
@@ -129,7 +130,6 @@ export default function TrackOrder() {
     setActiveOrder,
     orderItems,
     activePayment,
-    setActivePayment,
     cancelOrder,
     loadingActive,
   } = useOrder();
@@ -138,38 +138,8 @@ export default function TrackOrder() {
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [cancelError, setCancelError] = useState(null);
 
-  const orderId = activeOrder?.order_id;
-  // Delivered and Cancelled are final, so polling stops there.
-  const isFinal =
-    activeOrder?.status === "Delivered" || activeOrder?.status === "Cancelled";
-
-  useEffect(() => {
-  if (!orderId || isFinal) return;
-
-  const interval = setInterval(async () => {
-    try {
-      const res = await fetch(
-        `/api/orders/${orderId}`
-      );
-
-      if (res.status === 404) {
-        navigate("menu");
-        return;
-      }
-      if (!res.ok) return;
-
-      const updatedOrder = await res.json();
-
-      setActiveOrder((prev) => ({ ...prev, status: updatedOrder.status || "Pending", }));
-      if (updatedOrder.payment) setActivePayment(updatedOrder.payment);
-
-    } catch (err) {
-      console.error("Error fetching order status:", err);
-    }
-  }, 1000);
-
-  return () => clearInterval(interval);
-}, [orderId, isFinal, navigate, setActiveOrder, setActivePayment]);
+  // Follows the status the admin sets (polls every second).
+  useOrderStatus();
 
   const currentIdx = activeOrder
     ? STATUS_CYCLE.indexOf(activeOrder.status)
