@@ -43,7 +43,6 @@ public class AuthController(
             FullName = name,
             Email = email,
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(req.Password),
-            // Self-registration always creates a customer; admins are seeded, never signed up.
             Role = Roles.Customer
         };
         db.Users.Add(user);
@@ -64,18 +63,15 @@ public class AuthController(
         if (user is null || string.IsNullOrEmpty(req.Password)
             || !BCrypt.Net.BCrypt.Verify(req.Password, user.PasswordHash))
             return Unauthorized(new { message = "Invalid email or password." });
-        // Checked after the password so the account's status isn't revealed to guessers.
         if (!user.IsActive)
             return StatusCode(403, new { message = "This account has been deactivated. Please contact the admin." });
 
-        // One login for every role; the client routes by role. Admins never get a 30-day token.
         var rememberMe = req.RememberMe == true && user.Role != Roles.Admin;
         var (token, expiresAt) = tokens.Issue(user, rememberMe);
         var permissions = await db.PermissionsForRoleAsync(user.Role);
         return Ok(new { message = "Login successful.", token, expiresAt, user = UsersController.ToSessionDto(user, permissions) });
     }
 
-    // Revokes the current token so it can't be reused even before it expires.
     [Authorize]
     [HttpPost("logout")]
     public async Task<IActionResult> Logout()
@@ -101,7 +97,6 @@ public class AuthController(
     {
         var user = await db.Users.FindAsync(User.UserId());
         if (user is null) return NotFound(new { message = "User not found." });
-        // Permissions were already loaded from the database when the token was validated.
         var permissions = User.FindAll(Permissions.ClaimType).Select(c => c.Value).Order();
         return Ok(UsersController.ToSessionDto(user, permissions));
     }
@@ -109,7 +104,6 @@ public class AuthController(
     [HttpPost("forgot-password")]
     public async Task<IActionResult> ForgotPassword(ForgotPasswordRequest req)
     {
-        // Same answer whether or not the email exists, so this can't be used to probe for accounts.
         const string generic = "If an account exists for that email, a password reset link has been sent.";
         var address = req.Email?.Trim().ToLowerInvariant() ?? "";
         if (address == "") return BadRequest(new { message = "Email is required." });
@@ -136,7 +130,6 @@ public class AuthController(
         if (!mailer.IsConfigured)
         {
             log.LogWarning("Smtp:Host is not set, so no email was sent. Password reset link for {Email}: {Link}", address, link);
-            // Local development only: hand the link back so the flow can be tested without SMTP.
             return env.IsDevelopment()
                 ? Ok(new { message = generic, devResetLink = link })
                 : Ok(new { message = generic });
@@ -173,7 +166,6 @@ public class AuthController(
             return BadRequest(new { message = "This reset link is invalid or has expired. Please request a new one." });
 
         reset.User.PasswordHash = BCrypt.Net.BCrypt.HashPassword(req.NewPassword);
-        // Log out every existing session; JWT timestamps have one-second precision.
         reset.User.SessionsValidAfter = now.AddTicks(-(now.Ticks % TimeSpan.TicksPerSecond));
         await db.PasswordResetTokens
             .Where(t => t.UserId == reset.UserId && t.UsedAt == null)

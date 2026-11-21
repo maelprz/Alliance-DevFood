@@ -1,15 +1,17 @@
 using System.Net;
 using System.Net.Mail;
 
-// SMTP email (e.g. Gmail with an app password). Configure Smtp:Host, Smtp:Port,
-// Smtp:Username, Smtp:Password and optionally Smtp:From via user-secrets.
 public class EmailSender(IConfiguration config)
 {
     public bool IsConfigured => !string.IsNullOrWhiteSpace(config["Smtp:Host"]);
 
     public async Task SendAsync(string to, string subject, string htmlBody)
     {
-        var port = int.TryParse(config["Smtp:Port"], out var p) ? p : 587;
+        var port = 587;
+        if (int.TryParse(config["Smtp:Port"], out var configuredPort))
+        {
+            port = configuredPort;
+        }
         using var client = new SmtpClient(config["Smtp:Host"], port)
         {
             EnableSsl = true,

@@ -1,7 +1,7 @@
-// Small round icon for a notification type (bell list and pop-ups).
-// Exports only NotificationIcon component — React Compiler rule
+
+
 const PATHS = {
-  // shopping bag
+  
   order_confirmed: (
     <>
       <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z" />
@@ -9,7 +9,7 @@ const PATHS = {
       <path d="M16 10a4 4 0 0 1-8 0" />
     </>
   ),
-  // delivery truck
+  
   order_status: (
     <>
       <path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2" />
@@ -19,14 +19,14 @@ const PATHS = {
       <circle cx="7" cy="18" r="2" />
     </>
   ),
-  // price tag
+  
   coupon: (
     <>
       <path d="M12.6 2.6A2 2 0 0 0 11.2 2H4a2 2 0 0 0-2 2v7.2a2 2 0 0 0 .6 1.4l8.7 8.7a2.4 2.4 0 0 0 3.4 0l6.6-6.6a2.4 2.4 0 0 0 0-3.4Z" />
       <circle cx="7.5" cy="7.5" r="1" />
     </>
   ),
-  // megaphone
+  
   broadcast: (
     <>
       <path d="m3 11 18-5v12L3 14v-3z" />

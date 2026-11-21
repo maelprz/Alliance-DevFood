@@ -196,15 +196,10 @@ public class MenuController(AppDbContext db, IWebHostEnvironment environment) : 
             Name = request.Name.Trim(),
             Price = request.Price.Value,
             Category = request.Category.Trim(),
-            Description = "",
+            Description = request.Description.Trim(),
             ImageUrl = request.Image,
             IsAvailable = true
         };
-
-        if (request.Description is not null)
-        {
-            item.Description = request.Description.Trim();
-        }
 
         if (request.Availability.HasValue)
         {

@@ -15,7 +15,7 @@ export default function NotificationBell() {
   const [open, setOpen] = useState(false);
   const wrapperRef = useRef(null);
 
-  // Close dropdown on outside click
+  
   useEffect(() => {
     if (!open) return undefined;
     function handleClick(e) {

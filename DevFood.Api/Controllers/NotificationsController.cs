@@ -24,7 +24,6 @@ public class NotificationsController(AppDbContext db) : ControllerBase
         isRead
     };
 
-    // A customer's feed: their direct notifications plus every broadcast, newest first.
     [Authorize(Policy = Permissions.NotificationsReadOwn)]
     [HttpGet]
     public async Task<IActionResult> ForUser([FromQuery(Name = "user_id")] int userId)
@@ -42,7 +41,6 @@ public class NotificationsController(AppDbContext db) : ControllerBase
         return Ok(list.Select(x => ToDto(x.n, x.isRead)));
     }
 
-    // Admin history: broadcasts only (order updates are per-customer noise).
     [Authorize(Roles = "admin")]
     [HttpGet("all")]
     public async Task<IActionResult> All()

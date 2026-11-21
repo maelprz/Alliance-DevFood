@@ -6,13 +6,13 @@ import { requestPasswordReset } from "../services/authService";
 import { isValidEmail } from "../utils/validation";
 import { authInputStyle, authButtonStyle, authLinkStyle } from "../constants/authStyles";
 
-// Forgot Password — asks for the account email and requests a reset link.
-// Exports only ForgotPassword component — React Compiler rule
+
+
 export default function ForgotPassword() {
   const { navigate } = useNav();
   const [email, setEmail] = useState("");
   const [error, setError] = useState("");
-  const [result, setResult] = useState(null); // { message, devResetLink? }
+  const [result, setResult] = useState(null); 
   const [loading, setLoading] = useState(false);
 
   async function handleSubmit(e) {
@@ -44,7 +44,7 @@ export default function ForgotPassword() {
           <FormAlert tone="success" style={{ marginBottom: 16 }}>
             {result.message} The link expires in 30 minutes.
           </FormAlert>
-          {/* Only returned by the API in local development when no email server is configured. */}
+          
           {result.devResetLink && (
             <p style={{ fontSize: 13, color: "#6b7280", margin: "0 0 16px", wordBreak: "break-all" }}>
               Development mode (no email server set up):{" "}

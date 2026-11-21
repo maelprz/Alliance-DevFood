@@ -22,7 +22,6 @@ public class UsersController(AppDbContext db) : ControllerBase
     static readonly TimeSpan NameCooldown = TimeSpan.FromDays(30);
     const int MaxPageSize = 100;
 
-    // Single user shape shared by login, register and profile (never includes the hash).
     public static object ToDto(User u) => new
     {
         id = u.Id,
@@ -39,7 +38,6 @@ public class UsersController(AppDbContext db) : ControllerBase
         createdAt = u.CreatedAt
     };
 
-    // The logged-in user plus the permissions their role grants (login and /api/auth/me).
     public static JsonObject ToSessionDto(User u, IEnumerable<string> permissions)
     {
         var dto = JsonSerializer.SerializeToNode(ToDto(u))!.AsObject();
@@ -47,8 +45,6 @@ public class UsersController(AppDbContext db) : ControllerBase
         return dto;
     }
 
-    // Admin list of registered users. Without ?page it returns everyone; with ?page it
-    // returns one page and puts the overall count in the X-Total-Count header.
     [Authorize(Policy = Permissions.UsersView)]
     [HttpGet]
     public async Task<IActionResult> GetAll(
@@ -80,10 +76,10 @@ public class UsersController(AppDbContext db) : ControllerBase
     {
         if (!User.CanAccessUser(id)) return Forbid();
         var user = await db.Users.FindAsync(id);
-        return user is null ? NotFound(new { message = "User not found." }) : Ok(ToDto(user));
+        if (user is null) return NotFound(new { message = "User not found." });
+        return Ok(ToDto(user));
     }
 
-    // Users edit only their own profile; admins manage other accounts by deactivating them.
     [Authorize(Policy = Permissions.ProfileManageOwn)]
     [HttpPatch("{id:int}")]
     public async Task<IActionResult> Patch(int id, UserPatch req)
@@ -133,8 +129,6 @@ public class UsersController(AppDbContext db) : ControllerBase
         return Ok(ToDto(user));
     }
 
-    // Soft delete: the row (and the user's order history) stays, but login is blocked
-    // and any tokens the user already holds are rejected on their next request.
     [Authorize(Policy = Permissions.UsersDeactivate)]
     [HttpPatch("{id:int}/deactivate")]
     public async Task<IActionResult> Deactivate(int id)

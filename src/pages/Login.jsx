@@ -6,14 +6,14 @@ import { PERMISSIONS } from "../constants/auth";
 import { hasPermission } from "../utils/rbac";
 import FormAlert from "../components/FormAlert";
 
-// Customer Login / Sign Up page
-// Exports only Login component — React Compiler rule (one export type per file)
+
+
 export default function Login() {
   const { navigate } = useNav();
   const { setUser, setAdminUser } = useApp();
 
-  // Lock page scroll while on the auth screen — there's nothing below the form
-  // to scroll to, and locking ensures the fixed gradient bg always appears full.
+  
+  
   useEffect(() => {
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -22,7 +22,7 @@ export default function Login() {
     };
   }, []);
 
-  // All auth logic lives in the hook — this component is pure UI
+  
   const {
     isSignUp,
     setIsSignUp,
@@ -38,7 +38,7 @@ export default function Login() {
     handleLogin,
     handleRegister,
   } = useAuth({
-    // One login for every role (RBAC): admins go to the admin panel, customers to the menu.
+    
     onLoginSuccess: (user) => {
       if (hasPermission(user, PERMISSIONS.ADMIN_PANEL)) {
         setAdminUser(user);
@@ -52,8 +52,7 @@ export default function Login() {
 
   return (
     <>
-      {/* Pinned background layer — food photo behind a translucent coral
-          gradient. Fixed to viewport so it always fills the screen. */}
+      
       <div
         aria-hidden="true"
         style={{
@@ -67,7 +66,7 @@ export default function Login() {
           zIndex: 0,
         }}
       >
-        {/* Decorative blurred circles — depth without competing with the form. */}
+        
         <div
           style={{
             position: "absolute",
@@ -105,8 +104,7 @@ export default function Login() {
         />
       </div>
 
-      {/* Content layer — sits above the fixed bg. Scrolls if the form ever
-          exceeds viewport height (rare on desktop, normal in landscape mobile). */}
+      
       <div
         style={{
           position: "relative",
@@ -121,7 +119,7 @@ export default function Login() {
         }}
       >
       <div style={{ width: "100%", maxWidth: 440 }}>
-        {/* Header */}
+        
         <div style={{ textAlign: "center", marginBottom: 32 }}>
           <h1
             style={{
@@ -141,7 +139,7 @@ export default function Login() {
           </p>
         </div>
 
-        {/* Card */}
+        
         <div
           style={{
             background: "#ffffff",
@@ -152,7 +150,7 @@ export default function Login() {
             overflow: "hidden",
           }}
         >
-          {/* Warm accent strip */}
+          
           <div
             style={{
               height: 6,
@@ -161,7 +159,7 @@ export default function Login() {
             }}
           />
           <div style={{ padding: 32 }}>
-          {/* Tab switcher */}
+          
           <div
             style={{
               display: "flex",
@@ -204,14 +202,14 @@ export default function Login() {
             <FormAlert tone="success" style={{ marginBottom: 16 }}>{successMessage}</FormAlert>
           )}
 
-          {/* ── LOGIN FORM ── */}
+          
           {!isSignUp && (
             <form
               onSubmit={handleLogin}
               noValidate
               style={{ display: "flex", flexDirection: "column", gap: 16 }}
             >
-              {/* Email */}
+              
               <div>
                 <label
                   style={{
@@ -261,7 +259,7 @@ export default function Login() {
                 )}
               </div>
 
-              {/* Password */}
+              
               <div>
                 <label
                   style={{
@@ -311,7 +309,7 @@ export default function Login() {
                 )}
               </div>
 
-              {/* Remember me + Forgot password */}
+              
               <div
                 style={{
                   display: "flex",
@@ -356,7 +354,7 @@ export default function Login() {
                 </button>
               </div>
 
-              {/* Submit */}
+              
               <button
                 type="submit"
                 disabled={loading || attemptsLeft === 0}
@@ -382,14 +380,14 @@ export default function Login() {
             </form>
           )}
 
-          {/* ── SIGN UP FORM ── */}
+          
           {isSignUp && (
             <form
               onSubmit={handleRegister}
               noValidate
               style={{ display: "flex", flexDirection: "column", gap: 16 }}
             >
-              {/* Full Name */}
+              
               <div>
                 <label
                   style={{
@@ -439,7 +437,7 @@ export default function Login() {
                 )}
               </div>
 
-              {/* Email */}
+              
               <div>
                 <label
                   style={{
@@ -489,7 +487,7 @@ export default function Login() {
                 )}
               </div>
 
-              {/* Password with complexity hint */}
+              
               <div>
                 <label
                   style={{
@@ -549,7 +547,7 @@ export default function Login() {
                 )}
               </div>
 
-              {/* Confirm Password */}
+              
               <div>
                 <label
                   style={{
@@ -603,7 +601,7 @@ export default function Login() {
                 )}
               </div>
 
-              {/* Submit */}
+              
               <button
                 type="submit"
                 disabled={loading}

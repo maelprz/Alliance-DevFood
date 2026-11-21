@@ -10,13 +10,15 @@ const AUDIENCE_LABEL = {
 async function loadHistory() {
   const res = await fetch("/api/notifications/all", { headers: authHeaders("admin") });
   const data = await res.json();
-  return Array.isArray(data) ? data : [];
+  if (Array.isArray(data)) return data;
+  return [];
 }
 
 async function loadCoupons() {
   const res = await fetch("/api/coupons", { headers: authHeaders("admin") });
   const data = await res.json();
-  return Array.isArray(data) ? data : [];
+  if (Array.isArray(data)) return data;
+  return [];
 }
 
 export default function NotificationManager() {
@@ -36,7 +38,7 @@ export default function NotificationManager() {
       .catch((err) => console.error("Failed to load notifications:", err));
     loadCoupons()
       .then((data) => { if (active) setCoupons(data); })
-      .catch(() => {}); // Notifications can be sent without a coupon.
+      .catch(() => {}); 
     return () => { active = false; };
   }, []);
 
@@ -144,7 +146,7 @@ export default function NotificationManager() {
         </div>
       )}
 
-      {/* Send notification */}
+      
       <div
         style={{
           background: "#fff",
@@ -192,7 +194,7 @@ export default function NotificationManager() {
               style={inputStyle}
             >
               <option value="">— None —</option>
-              {/* Only coupons customers can still use (or will soon) are offered. */}
+              
               {coupons
                 .filter((c) => c.status === "Active" || c.status === "Scheduled")
                 .map((c) => (
@@ -223,7 +225,7 @@ export default function NotificationManager() {
         </button>
       </div>
 
-      {/* Notification history */}
+      
       <h2 style={{ fontSize: 16, fontWeight: 600, margin: "0 0 12px" }}>
         Recent notifications
       </h2>

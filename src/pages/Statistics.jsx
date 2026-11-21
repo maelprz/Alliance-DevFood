@@ -46,7 +46,6 @@ export default function Statistics() {
         Statistics Dashboard
       </h1>
 
-      {/* Order totals */}
       <div
         style={{
           display: "grid",
@@ -55,7 +54,6 @@ export default function Statistics() {
           marginBottom: 40,
         }}
       >
-        {/* Total orders */}
         <div
           style={{
             background: "#fff",
@@ -85,7 +83,6 @@ export default function Statistics() {
           </p>
         </div>
 
-        {/* Total revenue */}
         <div
           style={{
             background: "#fff",
@@ -115,7 +112,6 @@ export default function Statistics() {
           </p>
         </div>
 
-        {/* Delivered orders */}
         <div
           style={{
             background: "#fff",
@@ -145,7 +141,6 @@ export default function Statistics() {
           </p>
         </div>
 
-        {/* Pending orders */}
         <div
           style={{
             background: "#fff",
@@ -176,7 +171,6 @@ export default function Statistics() {
         </div>
       </div>
 
-      {/* Revenue */}
       <div style={{
         width: "100%", boxSizing: "border-box", background: "#fff",
         border: "1px solid #e5e7eb", borderRadius: 12, padding: 20, marginBottom: 24,
@@ -210,7 +204,6 @@ export default function Statistics() {
         )}
       </div>
 
-      {/* Most ordered items */}
       <div style={{
         width: "100%", boxSizing: "border-box", background: "#fff",
         border: "1px solid #e5e7eb", borderRadius: 12, padding: 20,

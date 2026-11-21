@@ -5,19 +5,19 @@ import { authHeaders, clearSession } from "../services/authService";
 import { SESSION_EXPIRED_EVENT } from "../constants/auth";
 import NotificationToasts from "../components/NotificationToasts";
 
-// Notification types that also pop up as an in-app toast when they arrive.
+
 const TOAST_TYPES = new Set(["order_confirmed", "order_status"]);
 
-// Polls /api/notifications for the logged-in user. Server returns both direct
-// notifications and broadcasts, each tagged with isRead — the provider just
-// mirrors that list, and raises a toast for new order notifications.
+
+
+
 export function NotificationProvider({ children }) {
   const { user } = useApp();
   const [notifications, setNotifications] = useState([]);
   const [toasts, setToasts] = useState([]);
   const intervalRef = useRef(null);
-  // ids already shown to this user; null until the first fetch so existing
-  // notifications don't all pop up as toasts on login.
+  
+  
   const seenIdsRef = useRef(null);
 
   const fetchNotifications = useCallback((userId) => {
@@ -26,7 +26,7 @@ export function NotificationProvider({ children }) {
     })
       .then((r) => {
         if (r.status === 401) {
-          // Token expired / revoked / account deactivated — log the customer out.
+          
           clearSession();
           window.dispatchEvent(new Event(SESSION_EXPIRED_EVENT));
           return [];
@@ -67,7 +67,7 @@ export function NotificationProvider({ children }) {
   const markRead = useCallback(
     async (id) => {
       if (!user?.id) return;
-      // Optimistic update — flip isRead locally, then sync with the server.
+      
       setNotifications((prev) =>
         prev.map((n) => (n.id === id ? { ...n, isRead: true } : n))
       );
@@ -78,7 +78,7 @@ export function NotificationProvider({ children }) {
           body: JSON.stringify({ user_id: user.id }),
         });
       } catch {
-        // Network error — next poll will reconcile.
+        
       }
     },
     [user?.id]
@@ -94,7 +94,7 @@ export function NotificationProvider({ children }) {
         body: JSON.stringify({ user_id: user.id }),
       });
     } catch {
-      // Network error — next poll will reconcile.
+      
     }
   }, [user?.id]);
 

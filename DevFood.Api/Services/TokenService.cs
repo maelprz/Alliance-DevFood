@@ -3,7 +3,6 @@ using System.Text;
 using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Tokens;
 
-// Issues the JWTs returned by /api/auth/login and holds the key used to validate them.
 public class TokenService
 {
     public const string Issuer = "DevFood.Api";
@@ -18,7 +17,6 @@ public class TokenService
         var configured = config["Jwt:Key"];
         if (string.IsNullOrWhiteSpace(configured) || configured.Length < 32)
         {
-            // Fine for local development, but every API restart logs everyone out.
             log.LogWarning("Jwt:Key is not set (or shorter than 32 characters); using a random key for this run.");
             Key = new SymmetricSecurityKey(RandomNumberGenerator.GetBytes(64));
         }
@@ -31,7 +29,9 @@ public class TokenService
     public (string Token, DateTime ExpiresAt) Issue(User user, bool rememberMe)
     {
         var now = DateTime.UtcNow;
-        var expires = now.Add(rememberMe ? RememberMeLifetime : SessionLifetime);
+        var lifetime = SessionLifetime;
+        if (rememberMe) lifetime = RememberMeLifetime;
+        var expires = now.Add(lifetime);
         var token = new JsonWebTokenHandler().CreateToken(new SecurityTokenDescriptor
         {
             Issuer = Issuer,

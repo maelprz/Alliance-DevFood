@@ -13,9 +13,9 @@ function formatDate(iso) {
   return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
 }
 
-// Admin: list of registered users (paginated + search) with soft-delete
-// deactivate / reactivate behind a confirmation dialog.
-// Exports only UserManager component — React Compiler rule
+
+
+
 export default function UserManager() {
   const { adminUser, setAdminUser } = useApp();
   const canDeactivate = hasPermission(adminUser, PERMISSIONS.USERS_DEACTIVATE);
@@ -26,20 +26,20 @@ export default function UserManager() {
   const [search, setSearch] = useState("");
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
-  const [message, setMessage] = useState(null); // { text, error }
-  const [confirming, setConfirming] = useState(null); // user awaiting confirmation
+  const [message, setMessage] = useState(null); 
+  const [confirming, setConfirming] = useState(null); 
   const [saving, setSaving] = useState(false);
   const [sessionExpired, setSessionExpired] = useState(false);
 
-  // Admin token expired or revoked — send them back to the admin login.
+  
   useEffect(() => {
     if (!sessionExpired) return;
     setAdminUser(null);
     navigate("login");
   }, [sessionExpired, setAdminUser, navigate]);
 
-  // `loading` is switched on by whatever changes page/query (initial state, pager,
-  // search debounce); state is only set in promise callbacks, per the React Compiler rules.
+  
+  
   useEffect(() => {
     let cancelled = false;
     const params = new URLSearchParams({ page, pageSize: PAGE_SIZE });
@@ -68,10 +68,10 @@ export default function UserManager() {
     };
   }, [page, query]);
 
-  // Debounce the search box so we don't query on every keystroke.
+  
   useEffect(() => {
     const next = search.trim();
-    if (next === query) return undefined; // nothing changed — no refetch, so don't show "Loading…"
+    if (next === query) return undefined; 
     const t = setTimeout(() => {
       setLoading(true);
       setPage(1);

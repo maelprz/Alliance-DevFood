@@ -6,7 +6,7 @@ import { resetPassword } from "../services/authService";
 import { validatePassword } from "../utils/validation";
 import { authInputStyle, authButtonStyle, authLinkStyle } from "../constants/authStyles";
 
-// Used as a lazy useState initializer so the URL is read once, not on every render.
+
 function tokenFromUrl() {
   try {
     return new URLSearchParams(window.location.search).get("reset_token") || "";
@@ -15,17 +15,17 @@ function tokenFromUrl() {
   }
 }
 
-// Drops ?reset_token from the address bar so the token isn't left in history.
+
 function clearTokenFromUrl() {
   try {
     window.history.replaceState(null, "", window.location.pathname);
   } catch {
-    // history API unavailable — harmless.
+    
   }
 }
 
-// Reset Password — opened from the emailed link (/?reset_token=...).
-// Exports only ResetPassword component — React Compiler rule
+
+
 export default function ResetPassword() {
   const { navigate } = useNav();
   const [token] = useState(tokenFromUrl);

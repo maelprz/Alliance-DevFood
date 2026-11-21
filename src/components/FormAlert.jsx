@@ -1,5 +1,5 @@
-// Inline message for forms (errors, confirmations). One style everywhere.
-// Exports only FormAlert component — React Compiler rule
+
+
 const TONES = {
   error: { bg: "#fef3f2", fg: "#b42318" },
   success: { bg: "#ecfdf3", fg: "#067647" },

@@ -1,6 +1,6 @@
-// Shared full-screen layout for the small auth pages (Forgot / Reset Password):
-// same coral gradient as Login with a centered white card.
-// Exports only AuthCard component — React Compiler rule
+
+
+
 export default function AuthCard({ title, subtitle, children }) {
   return (
     <>

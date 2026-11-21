@@ -1,14 +1,11 @@
 using Microsoft.EntityFrameworkCore;
 
-// Role names. They match the "role" claim checked by [Authorize(Roles = "admin")].
 public static class Roles
 {
     public const string Customer = "customer";
     public const string Admin = "admin";
 }
 
-// Permission names, also used as authorization policy names: [Authorize(Policy = Permissions.UsersView)].
-// Covers the User Management and Notifications modules; other modules add their own rows.
 public static class Permissions
 {
     public const string ClaimType = "perm";
@@ -22,7 +19,6 @@ public static class Permissions
     public static readonly string[] All = [AdminPanel, UsersView, UsersDeactivate, ProfileManageOwn, NotificationsReadOwn];
 }
 
-// Seed rows for the roles, permissions and role_permissions tables (written by the migration).
 public static class RbacSeed
 {
     public static readonly Role[] Roles =
@@ -56,7 +52,6 @@ public static class RbacSeed
 
 public static class RbacQueries
 {
-    // The permissions a role currently grants, read from the database (the source of truth).
     public static Task<List<string>> PermissionsForRoleAsync(this AppDbContext db, string role)
         => db.RolePermissions.AsNoTracking()
             .Where(rp => rp.RoleName == role)

@@ -219,13 +219,12 @@ public class OrdersController(AppDbContext db, IConfiguration config) : Controll
             {
                 order.DeliveredAt = DateTime.UtcNow;
             }
-            // Cash on Delivery: the rider collects on delivery; a cancelled order is never paid.
             if (order.Payment is { } payment)
             {
                 if (status == "Delivered") payment.Status = "Paid";
                 else if (status == "Cancelled") payment.Status = "Voided";
             }
-            if (!byCustomer)
+            if (byCustomer == false)
                 db.Notifications.Add(new Notification
                 {
                     UserId = order.UserId,

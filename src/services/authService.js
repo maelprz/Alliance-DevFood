@@ -1,27 +1,18 @@
-// Exports only authService functions — React Compiler rule (one export type per file)
-// Checklist: separate API service layer from UI components.
-// All fetch() calls go to /api which Vite proxies to the ASP.NET Core API (localhost:5143).
+
+
+
 
 import { API_BASE, STORAGE_KEYS, SESSION_EXPIRED_EVENT, ROLES } from "../constants/auth";
 
-// ── Internal helpers ──────────────────────────────────────────────────────────
 
-/**
- * Wrapper around fetch that converts a network failure (server not running)
- * into a readable Error so the UI catch block can show something actionable
- * instead of a silent "Something went wrong."
- *
- * @param {string} url
- * @param {RequestInit} options
- * @returns {Promise<{ res: Response, data: object }>}
- * @throws {Error} with a user-friendly message on network failure
- */
+
+
 async function apiFetch(url, options) {
   let res;
   try {
     res = await fetch(url, options);
   } catch {
-    // fetch() threw — server is not reachable (not running, wrong port, etc.)
+    
     throw new Error(
       "Cannot reach the server. Make sure the API is running (start.bat).",
     );
@@ -37,20 +28,17 @@ async function apiFetch(url, options) {
   return { res, data };
 }
 
-/** Storage that currently holds the customer session ("Remember me" → localStorage). */
+
 function sessionStore() {
   try {
     if (localStorage.getItem(STORAGE_KEYS.TOKEN)) return localStorage;
   } catch {
-    // localStorage unavailable — fall through to sessionStorage.
+    
   }
   return sessionStorage;
 }
 
-/**
- * Like apiFetch, but sends the customer's token. A 401 means the session is no
- * longer valid, so it is cleared and SESSION_EXPIRED_EVENT tells the app to log out.
- */
+
 async function authorizedFetch(url, options = {}) {
   const result = await apiFetch(url, {
     ...options,
@@ -63,15 +51,9 @@ async function authorizedFetch(url, options = {}) {
   return result;
 }
 
-// ── API calls ─────────────────────────────────────────────────────────────────
 
-/**
- * Registers a new customer account. The server validates the fields, checks
- * that the email is unique and stores a bcrypt hash of the password.
- *
- * @param {{ name: string, email: string, password: string }} payload
- * @returns {Promise<{ success: boolean, message: string, user?: object }>}
- */
+
+
 export async function registerUser({ name, email, password }) {
   const { res, data } = await apiFetch(`${API_BASE}/auth/register`, {
     method: "POST",
@@ -89,17 +71,7 @@ export async function registerUser({ name, email, password }) {
   return { success: true, message: data.message, user: data.user };
 }
 
-/**
- * Authenticates any user (one login for every role) and persists the JWT where
- * that role's screens read it:
- * - customer: sessionStorage (cleared when the tab closes); with rememberMe it goes
- *   to localStorage and the server issues a 30-day token instead of an 8-hour one.
- * - admin: the admin token slot used by the admin panel; tab-scoped, never remembered.
- * The returned user includes `role` and the `permissions` that role grants.
- *
- * @param {{ email: string, password: string, rememberMe?: boolean }} credentials
- * @returns {Promise<{ success: boolean, message: string, user?: object }>}
- */
+
 export async function loginUser({ email, password, rememberMe = false }) {
   const { res, data } = await apiFetch(`${API_BASE}/auth/login`, {
     method: "POST",
@@ -110,7 +82,7 @@ export async function loginUser({ email, password, rememberMe = false }) {
   if (!res.ok) {
     return {
       success: false,
-      // 403 = deactivated account; not counted as a failed password attempt
+      
       deactivated: res.status === 403,
       message: data.message || "Invalid email or password.",
     };
@@ -128,10 +100,7 @@ export async function loginUser({ email, password, rememberMe = false }) {
   return { success: true, message: data.message, user: data.user };
 }
 
-/**
- * Revokes the customer's token on the server, then clears it locally.
- * Local logout always happens, even if the server can't be reached.
- */
+
 export async function logoutUser() {
   const headers = authHeaders();
   clearSession();
@@ -139,17 +108,11 @@ export async function logoutUser() {
   try {
     await fetch(`${API_BASE}/auth/logout`, { method: "POST", headers });
   } catch {
-    // Server unreachable — the token will still expire on its own.
+    
   }
 }
 
-/**
- * Asks the server whether the stored token is still valid and returns the
- * up-to-date user. Used on app start so a revoked or deactivated session
- * doesn't linger in storage.
- *
- * @returns {Promise<object|null>} the user, or null if the session is invalid
- */
+
 export async function fetchCurrentUser() {
   try {
     const { res, data } = await authorizedFetch(`${API_BASE}/auth/me`, { method: "GET" });
@@ -157,18 +120,12 @@ export async function fetchCurrentUser() {
     sessionStore().setItem(STORAGE_KEYS.USER, JSON.stringify(data));
     return data;
   } catch {
-    // Server unreachable — keep the cached session for now.
+    
     return restoreSession().user;
   }
 }
 
-/**
- * Same check for the admin session: confirms the admin token is still valid and
- * returns the admin with their current role and permissions from the database.
- *
- * @returns {Promise<object|null|undefined>} the admin, null if the session is
- *   invalid, or undefined if the server can't be reached (keep the cached admin)
- */
+
 export async function fetchCurrentAdmin() {
   const headers = authHeaders("admin");
   if (!headers.Authorization) return null;
@@ -180,11 +137,7 @@ export async function fetchCurrentAdmin() {
   }
 }
 
-/**
- * Fetches a user's profile from the server (no passwordHash).
- * @param {string} userId
- * @returns {Promise<{ success: boolean, message?: string, user?: object }>}
- */
+
 export async function getUserProfile(userId) {
   const { res, data } = await authorizedFetch(`${API_BASE}/users/${encodeURIComponent(userId)}`, {
     method: "GET",
@@ -193,14 +146,7 @@ export async function getUserProfile(userId) {
   return { success: true, user: data };
 }
 
-/**
- * Updates the editable profile fields. Pass only the fields being changed.
- * For a password change, include both currentPassword and newPassword.
- *
- * @param {string} userId
- * @param {{ name?: string, email?: string, phone?: string, address?: string, currentPassword?: string, newPassword?: string }} payload
- * @returns {Promise<{ success: boolean, message?: string, user?: object }>}
- */
+
 export async function updateUserProfile(userId, payload) {
   const { res, data } = await authorizedFetch(`${API_BASE}/users/${encodeURIComponent(userId)}`, {
     method: "PATCH",
@@ -209,25 +155,18 @@ export async function updateUserProfile(userId, payload) {
   });
   if (!res.ok) return { success: false, message: data.message || "Failed to update profile." };
 
-  // Keep the cached user in sync so Navbar etc. update without a re-login.
-  // The profile response has no permissions, so carry over the cached ones.
+  
+  
   const user = { ...data, permissions: restoreSession().user?.permissions ?? [] };
   try {
     sessionStore().setItem(STORAGE_KEYS.USER, JSON.stringify(user));
   } catch {
-    // storage unavailable — non-fatal
+    
   }
   return { success: true, user };
 }
 
-/**
- * Requests a password reset link for the given email. The server answers the
- * same way whether or not the account exists. In local development without an
- * email server configured, it also returns the link as devResetLink.
- *
- * @param {string} email
- * @returns {Promise<{ success: boolean, message: string, devResetLink?: string }>}
- */
+
 export async function requestPasswordReset(email) {
   const { res, data } = await apiFetch(`${API_BASE}/auth/forgot-password`, {
     method: "POST",
@@ -238,12 +177,7 @@ export async function requestPasswordReset(email) {
   return { success: true, message: data.message, devResetLink: data.devResetLink };
 }
 
-/**
- * Sets a new password using the token from the emailed reset link.
- * @param {string} token
- * @param {string} newPassword
- * @returns {Promise<{ success: boolean, message: string }>}
- */
+
 export async function resetPassword(token, newPassword) {
   const { res, data } = await apiFetch(`${API_BASE}/auth/reset-password`, {
     method: "POST",
@@ -256,13 +190,9 @@ export async function resetPassword(token, newPassword) {
   };
 }
 
-// ── Session helpers ───────────────────────────────────────────────────────────
 
-/**
- * Authorization header for API calls.
- * @param {"customer"|"admin"} kind which session's token to send
- * @returns {{ Authorization?: string }}
- */
+
+
 export function authHeaders(kind = "customer") {
   try {
     const token =
@@ -275,11 +205,7 @@ export function authHeaders(kind = "customer") {
   }
 }
 
-/**
- * Restores a session from storage on app mount (sessionStorage first,
- * then a remembered session in localStorage).
- * @returns {{ user: object|null, token: string|null }}
- */
+
 export function restoreSession() {
   try {
     const store = sessionStore();
@@ -292,42 +218,39 @@ export function restoreSession() {
   return { user: null, token: null };
 }
 
-/**
- * Clears all customer session data from both storages.
- * Checklist: logout clears token completely.
- */
+
 export function clearSession() {
   for (const store of [sessionStorage, localStorage]) {
     try {
       store.removeItem(STORAGE_KEYS.TOKEN);
       store.removeItem(STORAGE_KEYS.USER);
     } catch {
-      // storage unavailable — nothing to clear
+      
     }
   }
 }
 
-/** Stores the admin's JWT for the admin pages (tab-scoped, like the admin user). */
+
 export function saveAdminToken(token) {
   try {
     sessionStorage.setItem(STORAGE_KEYS.ADMIN_TOKEN, token);
   } catch {
-    // sessionStorage unavailable — admin API calls will be rejected.
+    
   }
 }
 
-/** Revokes the admin's token on the server and clears it locally. */
+
 export async function logoutAdmin() {
   const headers = authHeaders("admin");
   try {
     sessionStorage.removeItem(STORAGE_KEYS.ADMIN_TOKEN);
   } catch {
-    // sessionStorage unavailable
+    
   }
   if (!headers.Authorization) return;
   try {
     await fetch(`${API_BASE}/auth/logout`, { method: "POST", headers });
   } catch {
-    // Server unreachable — the token will still expire on its own.
+    
   }
 }

@@ -3,13 +3,13 @@ import { useNav } from "../context/useNav";
 import { useApp } from "../context/useApp";
 import { saveAdminToken } from "../services/authService";
 
-// Login page for admins
+
 export default function AdminLogin() {
   const { navigate } = useNav();
   const { setAdminUser } = useApp();
   const [formData, setFormData] = useState({ email: "", password: "" });
 
-  // Prevent scrolling on the login page.
+  
   useEffect(() => {
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -55,7 +55,7 @@ export default function AdminLogin() {
 
   return (
     <>
-      {/* Page background */}
+      
       <div
         aria-hidden="true"
         style={{
@@ -80,9 +80,9 @@ export default function AdminLogin() {
         }}
       >
       <div style={{ width: "100%", maxWidth: 440 }}>
-        {/* Header */}
+        
         <div style={{ textAlign: "center", marginBottom: 32 }}>
-          {/* Admin icon */}
+          
           <div
             style={{
               width: 64,
@@ -114,7 +114,7 @@ export default function AdminLogin() {
           <p style={{ color: "#9ca3af", margin: 0 }}>Admin Portal Access</p>
         </div>
 
-        {/* Card */}
+        
         <div
           style={{
             background: "#ffffff",
@@ -125,7 +125,7 @@ export default function AdminLogin() {
             overflow: "hidden",
           }}
         >
-          {/* Card accent */}
+          
           <div
             style={{
               height: 6,
@@ -145,7 +145,7 @@ export default function AdminLogin() {
             Admin Login
           </h2>
 
-          {/* Error message */}
+          
           {error && (
             <div
               style={{
@@ -254,7 +254,7 @@ export default function AdminLogin() {
             </button>
           </form>
 
-          {/* Back to customer link */}
+          
           <div style={{ textAlign: "center", marginTop: 20 }}>
             <button
               onClick={() => navigate("login")}

@@ -43,7 +43,7 @@ export default function Profile() {
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [loadingOrders, setLoadingOrders] = useState(true);
 
-  const [tab, setTab] = useState("info"); // 'info' | 'orders' | 'security'
+  const [tab, setTab] = useState("info"); 
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({
     name: "",
@@ -59,13 +59,13 @@ export default function Profile() {
   const [success, setSuccess] = useState(null);
   const [showNameConfirm, setShowNameConfirm] = useState(false);
 
-  // Redirect guests to the login screen — profile requires auth
+  
   useEffect(() => {
     if (!user) navigate("login");
   }, [user, navigate]);
 
-  // Wrapped in useCallback so the effects below contain no direct setState
-  // calls — mirrors the hydrateActiveOrder pattern in OrderProvider.
+  
+  
   const hydrateProfile = useCallback((userId) => {
     setLoadingProfile(true);
     let cancelled = false;
@@ -78,7 +78,7 @@ export default function Profile() {
             name: result.user.name ?? "",
             email: result.user.email ?? "",
             phone: result.user.phone ?? "",
-            // Legacy users have only `address` — pre-fill street so it isn't lost
+            
             addressStreet: result.user.addressStreet ?? result.user.address ?? "",
             addressCity: result.user.addressCity ?? "",
             addressZip: result.user.addressZip ?? "",
@@ -100,7 +100,7 @@ export default function Profile() {
       .then((r) => (r.ok ? r.json() : []))
       .then((list) => {
         if (cancelled) return;
-        // Newest first
+        
         const sorted = [...list].sort((a, b) => {
           const ta = new Date(a.created_at ?? a.createdAt ?? 0).getTime();
           const tb = new Date(b.created_at ?? b.createdAt ?? 0).getTime();
@@ -115,8 +115,8 @@ export default function Profile() {
     };
   }, []);
 
-  // React Compiler dev-mode warns "setState in effect" — same documented
-  // exception as OrderProvider.hydrateActiveOrder. Build is clean.
+  
+  
   useEffect(() => {
     if (!user?.id) return undefined;
     return hydrateProfile(user.id);
@@ -130,8 +130,8 @@ export default function Profile() {
   const nameChanged =
     form.name.trim() !== (profile?.name ?? "").trim();
 
-  // 30-day cooldown is enforced server-side; the UI mirrors it so users see
-  // the lock state before they try to save.
+  
+  
   const NAME_COOLDOWN_MS = 30 * 24 * 60 * 60 * 1000;
   const nameUnlockAt = profile?.nameChangedAt
     ? new Date(profile.nameChangedAt).getTime() + NAME_COOLDOWN_MS
@@ -168,7 +168,7 @@ export default function Profile() {
     e.preventDefault();
     setError(null);
     setSuccess(null);
-    // Name changes are one-shot per 30 days, so confirm before committing
+    
     if (nameChanged) {
       setShowNameConfirm(true);
       return;
@@ -211,7 +211,7 @@ export default function Profile() {
       <Navbar />
 
       <div style={{ maxWidth: 1100, margin: "0 auto", padding: "32px 16px" }}>
-        {/* ── Profile header card ──────────────────────────────────────────── */}
+        
         <div
           style={{
             background: "#ffffff",
@@ -323,7 +323,7 @@ export default function Profile() {
           </div>
         </div>
 
-        {/* ── Tab switcher ─────────────────────────────────────────────────── */}
+        
         <div
           style={{
             display: "flex",
@@ -365,11 +365,11 @@ export default function Profile() {
           ))}
         </div>
 
-        {/* ── Alerts ───────────────────────────────────────────────────────── */}
+        
         {error && <FormAlert style={{ marginBottom: 16 }}>{error}</FormAlert>}
         {success && <FormAlert tone="success" style={{ marginBottom: 16 }}>{success}</FormAlert>}
 
-        {/* ── Personal Info tab ────────────────────────────────────────────── */}
+        
         {tab === "info" && (
           <div
             style={{
@@ -522,7 +522,7 @@ export default function Profile() {
           </div>
         )}
 
-        {/* ── Order history tab ────────────────────────────────────────────── */}
+        
         {tab === "orders" && (
           <div
             style={{
@@ -661,7 +661,7 @@ export default function Profile() {
           </div>
         )}
 
-        {/* ── Name change confirmation modal ───────────────────────────────── */}
+        
         {showNameConfirm && (
           <div
             role="dialog"
@@ -759,7 +759,7 @@ export default function Profile() {
           </div>
         )}
 
-        {/* ── Security tab ─────────────────────────────────────────────────── */}
+        
         {tab === "security" && (
           <div
             style={{
@@ -832,7 +832,7 @@ export default function Profile() {
   );
 }
 
-// Editable input — reused across the info form and password form
+
 function Field({ label, value, onChange, type = "text", placeholder, autoComplete, disabled = false, hint }) {
   return (
     <label style={{ display: "block" }}>
@@ -884,7 +884,7 @@ function Field({ label, value, onChange, type = "text", placeholder, autoComplet
   );
 }
 
-// Read-only field — shown when not in edit mode
+
 function ReadField({ label, value, placeholder = "—" }) {
   return (
     <div>

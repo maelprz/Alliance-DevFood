@@ -104,7 +104,6 @@ export default function Admin() {
     return () => { active = false; };
   }, [selectedCategory, menuPage, contextMenuItems]);
 
-  // Show current customer names in the order list.
   const [customerNames, setCustomerNames] = useState({});
 
   useEffect(() => {
@@ -331,7 +330,11 @@ export default function Admin() {
         }
       }
       if (response.status) {
-        throw new Error(`Menu request failed (${response.status}${response.statusText ? ` ${response.statusText}` : ""}).`);
+        let statusText = "";
+        if (response.statusText) {
+          statusText = " " + response.statusText;
+        }
+        throw new Error(`Menu request failed (${response.status}${statusText}).`);
       }
       throw new Error("The menu request failed. Please try again.");
     }
@@ -453,28 +456,64 @@ export default function Admin() {
     fontFamily: "inherit",
   };
 
-  const navBtnStyle = (active) => ({
+  const navBtnStyle = (active) => {
+    let background = "transparent";
+    let color = "#374151";
+    let fontWeight = 400;
+    if (active) {
+      background = "#FF5A36";
+      color = "#ffffff";
+      fontWeight = 600;
+    }
+    return {
     width: "100%",
     textAlign: "left",
     padding: "10px 16px",
     borderRadius: 8,
     border: "none",
-    background: active ? "#FF5A36" : "transparent",
-    color: active ? "#ffffff" : "#374151",
+    background,
+    color,
     fontSize: 14,
-    fontWeight: active ? 600 : 400,
+    fontWeight,
     cursor: "pointer",
     fontFamily: "inherit",
     marginBottom: 4,
-  });
+    };
+  };
 
   const currentOrderPage = orderPage;
   const pageOrders = orders;
+  let adminName = "Admin";
+  if (adminUser && adminUser.name !== null && adminUser.name !== undefined) {
+    adminName = adminUser.name;
+  }
+
+  const addressColor = (order) => {
+    if (order.delivery_address) return "#374151";
+    return "#9ca3af";
+  };
+
+  const orderItemText = (order) => {
+    let items = orderItems || [];
+    if (order.items && order.items.length > 0) items = order.items;
+
+    const names = items
+      .filter((item) => item.order_id === order.order_id || Boolean(item.order_id) === false)
+      .map((item) => {
+        const food = contextMenuItems.find((menuItem) => menuItem.food_id === item.food_id);
+        let name = item.name;
+        if (Boolean(name) === false && food) name = food.name;
+        if (Boolean(name) === false) name = "Unknown Items";
+        return `${item.quantity}× ${name}`;
+      })
+      .join(", ");
+
+    return names || "No item Details";
+  };
 
 
   return (
     <div style={{ display: "flex", minHeight: "100dvh", width: "100%", background: "transparent" }}>
-      {/* Sidebar */}
       <aside
         style={{
           width: 256,
@@ -497,7 +536,6 @@ export default function Admin() {
           Admin Panel
         </h2>
 
-        {/* Nav */}
         <nav style={{ flex: 1 }}>
           <button
             style={navBtnStyle(activeView === "orders")} onClick={() => setActiveView("orders")}>
@@ -521,7 +559,6 @@ export default function Admin() {
           </button>
         </nav>
 
-        {/* Footer actions */}
         <div
           style={{
             borderTop: "1px solid #e5e7eb",
@@ -532,7 +569,7 @@ export default function Admin() {
           }}
         >
           <p style={{ fontSize: 12, color: "#6b7280", margin: "0 0 8px" }}>
-            Logged in as {adminUser?.name ?? "Admin"}
+            Logged in as {adminName}
           </p>
           <button
             onClick={() => setShowLogoutConfirm(true)}
@@ -549,10 +586,8 @@ export default function Admin() {
         </div>
       </aside>
 
-      {/* Main content */}
       <main style={{ flex: 1, overflow: "auto", minWidth: 0 }}>
         <div style={{ maxWidth: 1100, margin: "0 auto", padding: "32px" }}>
-          {/* Orders */}
           {activeView === "orders" && (
             <div>
               <div
@@ -636,7 +671,7 @@ export default function Admin() {
                 </div>
               )}
 
-              {totalOrders === 0 ? (
+              {totalOrders === 0 && (
                 <div
                   style={{
                     background: "#fff",
@@ -649,7 +684,8 @@ export default function Admin() {
                 >
                   No orders match your search or status filter.
                 </div>
-              ) : (
+              )}
+              {totalOrders !== 0 && (
                 <div
                   style={{
                     background: "#fff",
@@ -737,7 +773,7 @@ export default function Admin() {
                             style={{
                               padding: "14px 20px",
                               fontSize: 13,
-                              color: order.delivery_address ? "#374151" : "#9ca3af",
+                              color: addressColor(order),
                               maxWidth: 220,
                               lineHeight: 1.4,
                             }}
@@ -751,23 +787,7 @@ export default function Admin() {
                               color: "#6b7280",
                             }}
                           >
-                            {(order.items && order.items.length > 0
-                              ? order.items
-                              : orderItems || []
-                            )
-                              .filter(
-                                (i) =>
-                                  i.order_id === order.order_id || !i.order_id
-                              )
-                              .map((i) => {
-                                const food = contextMenuItems.find(
-                                  (f) => f.food_id === i.food_id
-                                );
-                                return `${i.quantity}× ${
-                                  i.name || food?.name || "Unknown Items"
-                                }`;
-                              })
-                              .join(", ") || "No item Details"}
+                            {orderItemText(order)}
                           </td>
                           <td
                             style={{
@@ -836,7 +856,6 @@ export default function Admin() {
             </div>
           )}
 
-          {/* Menu */}
           {activeView === "menu" && (
             <div style={{ maxWidth: 1050 }}>
               <div
@@ -918,7 +937,6 @@ export default function Admin() {
                 </div>
               )}
 
-              {/* Add / Edit form */}
               {showAddForm && (
                 <div role="dialog" aria-modal="true" aria-label="Menu item form" style={{
                   position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)",
@@ -942,7 +960,8 @@ export default function Admin() {
                       margin: "0 0 20px",
                     }}
                   >
-                    {editingItem ? "Edit Menu Item" : "Add New Menu Item"}
+                    {editingItem && "Edit Menu Item"}
+                    {editingItem === null && "Add New Menu Item"}
                   </h2>
                   {menuNotice && menuNotice.type === "error" && (
                     <p role="alert" style={{ color: "#991b1b" }}>{menuNotice.text}</p>
@@ -1160,7 +1179,6 @@ export default function Admin() {
                 </div>
               )}
 
-              {/* Menu items table */}
               <div
                 style={{
                   background: "#fff",
@@ -1217,7 +1235,7 @@ export default function Admin() {
                         style={{ borderBottom: "1px solid #f3f4f6" }}
                       >
                         <td style={{ padding: "8px 12px" }}>
-                          {item.image ? (
+                          {item.image && (
                             <img
                               src={item.image}
                               alt={item.name}
@@ -1228,7 +1246,8 @@ export default function Admin() {
                                 display: "block",
                               }}
                             />
-                          ) : (
+                          )}
+                          {Boolean(item.image) === false && (
                             <span style={{ color: "#9ca3af", fontSize: 12 }}>
                               No image
                             </span>
@@ -1285,7 +1304,7 @@ export default function Admin() {
                           >
                             <input
                               type="checkbox"
-                              checked={!item.availability}
+                              checked={Boolean(item.availability) === false}
                               onChange={() => handleToggleStock(item)}
                               style={{
                                 accentColor: "#ef4444",
@@ -1296,13 +1315,12 @@ export default function Admin() {
                             <span
                               style={{
                                 fontSize: 13,
-                                color: item.availability
-                                  ? "#16a34a"
-                                  : "#ef4444",
+                                color: "#374151",
                                 fontWeight: 500,
                               }}
                             >
-                              {item.availability ? "In Stock" : "Out of Stock"}
+                              {item.availability && <span style={{ color: "#16a34a" }}>In Stock</span>}
+                              {Boolean(item.availability) === false && <span style={{ color: "#ef4444" }}>Out of Stock</span>}
                             </span>
                           </label>
                         </td>
@@ -1375,16 +1393,12 @@ export default function Admin() {
             </div>
           )}
 
-          {/* Statistics */}
           {activeView === "stats" && ( <Statistics /> )}
 
-          {/* Coupons */}
           {activeView === "coupons" && ( <CouponManager/> )}
 
-          {/* Notifications */}
           {activeView === "notifications" && ( <NotificationManager/> )}
 
-          {/* Users */}
           {activeView === "users" && ( <UserManager/> )}
 
   
@@ -1455,10 +1469,25 @@ export default function Admin() {
               position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)",
               display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999,
             }}>
-              <div style={{ background: "#fff", padding: 24, borderRadius: 14, width: "min(360px, 90vw)" }}>
-                <p>Are you sure you want to log out?</p>
-                <button type="button" onClick={handleLogout}>Log out</button>
-                <button type="button" onClick={() => setShowLogoutConfirm(false)} style={{ marginLeft: 10 }}>Cancel</button>
+              <div style={{ background: "#fff", padding: 24, borderRadius: 14, width: "min(400px, 90vw)", boxShadow: "0 10px 30px rgba(0,0,0,0.15)" }}>
+                <h2 style={{ fontSize: 18, margin: "0 0 12px", color: "#111827" }}>Log out?</h2>
+                <p style={{ color: "#374151", lineHeight: 1.5 }}>Are you sure you want to log out of the admin panel?</p>
+                <div style={{ display: "flex", justifyContent: "flex-end", gap: 12, marginTop: 24 }}>
+                  <button type="button" onClick={() => setShowLogoutConfirm(false)} style={{
+                    padding: "10px 18px", border: "1px solid #d1d5db", borderRadius: 8,
+                    background: "#fff", color: "#374151", fontSize: 14,
+                    fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
+                  }}>
+                    Cancel
+                  </button>
+                  <button type="button" onClick={handleLogout} style={{
+                    padding: "10px 18px", border: "1px solid #FF5A36", borderRadius: 8,
+                    background: "#FF5A36", color: "#fff", fontSize: 14,
+                    fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
+                  }}>
+                    Log out
+                  </button>
+                </div>
               </div>
             </div>
           )}

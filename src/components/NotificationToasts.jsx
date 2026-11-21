@@ -55,8 +55,8 @@ function Toast({ toast, onDismiss, onOpen }) {
   );
 }
 
-// Order Confirmed / Order Update pop-ups, bottom-right.
-// Exports only NotificationToasts component — React Compiler rule
+
+
 export default function NotificationToasts({ toasts, onDismiss, onOpen }) {
   if (toasts.length === 0) return null;
   return (
