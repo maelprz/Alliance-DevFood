@@ -175,7 +175,7 @@ export default function Statistics() {
         width: "100%", boxSizing: "border-box", background: "#fff",
         border: "1px solid #e5e7eb", borderRadius: 12, padding: 20, marginBottom: 24,
       }}>
-        <h3 style={{ margin: "0 0 8px" }}>Revenue Tracking - Last 30 Days</h3>
+        <h3 style={{ margin: "0 0 8px" }}>Revenue Tracking - Last 7 Days</h3>
         <p style={{ color: "#6b7280", fontSize: 13, margin: "0 0 20px" }}>
           Delivered and paid orders by Philippine delivery date. Older orders without a delivery date use their order date.
         </p>

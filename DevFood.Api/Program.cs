@@ -9,6 +9,11 @@ builder.Services.AddDbContext<AppDbContext>(o =>
     o.UseNpgsql(builder.Configuration.GetConnectionString("Default"))
      .UseSnakeCaseNamingConvention());
 
+builder.Services.AddScoped<AdminCouponsService>();
+builder.Services.AddScoped<MenuService>();
+builder.Services.AddScoped<AdminOrdersService>();
+builder.Services.AddScoped<AdminStatisticsService>();
+
 builder.Services.AddSingleton<TokenService>();
 builder.Services.AddSingleton<EmailSender>();
 

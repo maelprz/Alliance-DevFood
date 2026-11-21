@@ -25,7 +25,7 @@ public record OrderPatch(string? Status, string? Actor);
 
 [ApiController]
 [Route("api/orders")]
-public class OrdersController(AppDbContext db, IConfiguration config) : ControllerBase
+public class OrdersController(AppDbContext db, IConfiguration config, AdminOrdersService adminOrdersService) : ControllerBase
 {
     public const decimal DeliveryFee = 49.00m;
     static readonly string[] Statuses = ["Pending", "Preparing", "Ready", "Delivered", "Cancelled"];
@@ -184,65 +184,8 @@ public class OrdersController(AppDbContext db, IConfiguration config) : Controll
     [HttpPatch("{id:int}")]
     public async Task<IActionResult> Patch(int id, OrderPatch req)
     {
-        var order = await WithItems.FirstOrDefaultAsync(o => o.Id == id);
-        if (order is null) return NotFound(new { message = "Order not found." });
-        var status = Statuses.FirstOrDefault(s => s.Equals(req.Status, StringComparison.OrdinalIgnoreCase));
-        if (status is null) return BadRequest(new { message = "Unknown order status." });
-
-        var byCustomer = User.IsAdmin() == false;
-        if (byCustomer)
-        {
-            if (User.UserId() != order.UserId) return Forbid();
-            if (status != "Cancelled" || order.Status != "Pending")
-                return BadRequest(new { message = "You can only cancel your own pending order." });
-        }
-        else
-        {
-            if (status == "Cancelled")
-                return BadRequest(new { message = "Only the customer can cancel an order." });
-            if (order.Status == "Cancelled" || order.Status == "Delivered")
-                return BadRequest(new { message = "Completed or cancelled orders cannot be changed." });
-
-            var nextStatus = "";
-            if (order.Status == "Pending") nextStatus = "Preparing";
-            if (order.Status == "Preparing") nextStatus = "Ready";
-            if (order.Status == "Ready") nextStatus = "Delivered";
-
-            if (status != order.Status && status != nextStatus)
-                return BadRequest(new { message = "Orders must follow Pending, Preparing, Ready, then Delivered." });
-        }
-
-        if (status != order.Status)
-        {
-            order.Status = status;
-            if (status == "Delivered")
-            {
-                order.DeliveredAt = DateTime.UtcNow;
-            }
-            if (order.Payment is { } payment)
-            {
-                if (status == "Delivered") payment.Status = "Paid";
-                else if (status == "Cancelled") payment.Status = "Voided";
-            }
-            if (byCustomer == false)
-                db.Notifications.Add(new Notification
-                {
-                    UserId = order.UserId,
-                    Type = "order_status",
-                    Title = "Order Update",
-                    Message = $"Your order #{order.Id} is now {status}.",
-                    Audience = "user"
-                });
-            try
-            {
-                await db.SaveChangesAsync();
-            }
-            catch (DbUpdateConcurrencyException)
-            {
-                return Conflict(new { message = "The order status changed. Refresh and try again." });
-            }
-        }
-        return Ok(ToDto(order));
+        var result = await adminOrdersService.UpdateStatus(id, req, User);
+        if (result.StatusCode == 403) return Forbid();
+        return StatusCode(result.StatusCode, result.Value);
     }
-
 }

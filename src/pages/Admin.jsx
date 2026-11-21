@@ -221,13 +221,9 @@ export default function Admin() {
     return "Something went wrong. Please try again.";
   };
 
-  const handleToggleStock = async (item) => {
+  const handleToggleStock = async (item, selectedValue) => {
     const foodId = item.food_id;
-
-    let availability = true;
-    if (item.availability === true) {
-      availability = false;
-    }
+    const availability = selectedValue === "true";
 
     setMenuNotice(null);
 
@@ -481,6 +477,8 @@ export default function Admin() {
     };
   };
 
+  const formatOrderId = (id) => "ORD-" + String(id).padStart(4, "0");
+
   const currentOrderPage = orderPage;
   const pageOrders = orders;
   let adminName = "Admin";
@@ -517,6 +515,12 @@ export default function Admin() {
       <aside
         style={{
           width: 256,
+          height: "100dvh",
+          position: "fixed",
+          top: 0,
+          left: 0,
+          overflowY: "auto",
+          boxSizing: "border-box",
           background: "#ffffff",
           borderRight: "1px solid #e5e7eb",
           flexShrink: 0,
@@ -586,7 +590,7 @@ export default function Admin() {
         </div>
       </aside>
 
-      <main style={{ flex: 1, overflow: "auto", minWidth: 0 }}>
+      <main style={{ flex: 1, overflow: "auto", minWidth: 0, marginLeft: 256 }}>
         <div style={{ maxWidth: 1100, margin: "0 auto", padding: "32px" }}>
           {activeView === "orders" && (
             <div>
@@ -738,7 +742,7 @@ export default function Admin() {
                           <td style={{ padding: "14px 20px" }}>
                             <input
                               type="checkbox"
-                              aria-label={"Select order " + order.order_id}
+                              aria-label={"Select order " + formatOrderId(order.order_id)}
                               disabled={order.status !== "Cancelled"}
                               checked={selectedOrders.includes(order.order_id)}
                               onChange={(event) => {
@@ -758,7 +762,7 @@ export default function Admin() {
                               color: "#374151",
                             }}
                           >
-                            #{order.order_id}
+                            {formatOrderId(order.order_id)}
                           </td>
                           <td
                             style={{
@@ -1294,35 +1298,24 @@ export default function Admin() {
                           ₱{item.price.toFixed(2)}
                         </td>
                         <td style={{ padding: "8px 12px" }}>
-                          <label
+                          <select
+                            aria-label={"Availability for " + item.name}
+                            value={String(Boolean(item.availability))}
+                            onChange={(event) => handleToggleStock(item, event.target.value)}
                             style={{
-                              display: "flex",
-                              alignItems: "center",
-                              gap: 8,
+                              padding: "8px 10px",
+                              border: "1px solid #d1d5db",
+                              borderRadius: 8,
+                              background: "#fff",
+                              color: "#374151",
+                              fontSize: 13,
+                              fontFamily: "inherit",
                               cursor: "pointer",
                             }}
                           >
-                            <input
-                              type="checkbox"
-                              checked={Boolean(item.availability) === false}
-                              onChange={() => handleToggleStock(item)}
-                              style={{
-                                accentColor: "#ef4444",
-                                width: 16,
-                                height: 16,
-                              }}
-                            />
-                            <span
-                              style={{
-                                fontSize: 13,
-                                color: "#374151",
-                                fontWeight: 500,
-                              }}
-                            >
-                              {item.availability && <span style={{ color: "#16a34a" }}>In Stock</span>}
-                              {Boolean(item.availability) === false && <span style={{ color: "#ef4444" }}>Out of Stock</span>}
-                            </span>
-                          </label>
+                            <option value="true">In Stock</option>
+                            <option value="false">Out of Stock</option>
+                          </select>
                         </td>
                         <td style={{ padding: "8px 12px" }}>
                           <div style={{ display: "flex", gap: 8 }}>
@@ -1439,7 +1432,7 @@ export default function Admin() {
               <div style={{ background: "#fff", padding: 24, borderRadius: 14, width: "min(400px, 90vw)", boxShadow: "0 10px 30px rgba(0,0,0,0.15)" }}>
                 <h2 style={{ fontSize: 18, margin: "0 0 12px", color: "#111827" }}>Update order status?</h2>
                 <p style={{ color: "#374151", lineHeight: 1.5 }}>
-                  Change order <strong>#{pendingStatus.orderId}</strong> from <strong>{pendingStatus.oldStatus}</strong> to <strong>{pendingStatus.newStatus}</strong>?
+                  Change order <strong>{formatOrderId(pendingStatus.orderId)}</strong> from <strong>{pendingStatus.oldStatus}</strong> to <strong>{pendingStatus.newStatus}</strong>?
                 </p>
                 <div style={{ display: "flex", justifyContent: "flex-end", gap: 12, marginTop: 24 }}>
                   <button type="button" onClick={() => setPendingStatus(null)} style={{
