@@ -1,31 +1,43 @@
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json.Serialization;
+
+public sealed record MenuItemDto(
+    [property: JsonPropertyName("food_id")] int FoodId,
+    [property: JsonPropertyName("name")] string Name,
+    [property: JsonPropertyName("price")] decimal Price,
+    [property: JsonPropertyName("category")] string Category,
+    [property: JsonPropertyName("description")] string? Description,
+    [property: JsonPropertyName("image")] string? Image,
+    [property: JsonPropertyName("availability")] bool Availability);
 
 public class MenuService(MenuRepository repository, IWebHostEnvironment environment)
 {
     private static readonly string[] Categories =
     [
-        MenuCategories.Burger, MenuCategories.Sandwich, MenuCategories.Chicken, MenuCategories.Pizzas, MenuCategories.RiceMeals,
-        MenuCategories.Snacks, MenuCategories.Spaghetti, MenuCategories.Dessert, MenuCategories.Drinks
+        MenuCategories.Burger, 
+        MenuCategories.Sandwich, 
+        MenuCategories.Chicken, 
+        MenuCategories.Pizzas, 
+        MenuCategories.RiceMeals,
+        MenuCategories.Snacks, 
+        MenuCategories.Spaghetti, 
+        MenuCategories.Dessert, 
+        MenuCategories.Drinks
     ];
 
-    private static object ToDto(MenuItem item)
-    {
-        return new
-        {
-            food_id = item.Id,
-            name = item.Name,
-            price = item.Price,
-            category = item.Category,
-            description = item.Description,
-            image = item.ImageUrl,
-            availability = item.IsAvailable
-        };
-    }
+    private static MenuItemDto ToDto(MenuItem item) =>
+        new(item.Id, 
+        item.Name, 
+        item.Price, 
+        item.Category, 
+        item.Description, 
+        item.ImageUrl, 
+        item.IsAvailable);
 
     public async Task<ServiceResult> GetAll()
     {
         var items = await repository.GetAll();
-        return ServiceResults.Ok(items.Select(ToDto));
+        return ServiceResults.Ok(items.Select(ToDto).ToList());
     }
 
 
@@ -37,7 +49,7 @@ public class MenuService(MenuRepository repository, IWebHostEnvironment environm
         var currentPage = result.Page;
         var totalPages = result.TotalPages;
 
-        return ServiceResults.Ok(new { items = items.Select(ToDto), total, page = currentPage, totalPages });
+        return ServiceResults.Ok(new { items = items.Select(ToDto).ToList(), total, page = currentPage, totalPages });
     }
 
     private static bool HasImageSignature(string contentType, byte[] header, int length)
