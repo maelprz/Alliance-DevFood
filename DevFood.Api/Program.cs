@@ -13,6 +13,9 @@ builder.Services.AddScoped<AdminCouponsService>();
 builder.Services.AddScoped<MenuService>();
 builder.Services.AddScoped<AdminOrdersService>();
 builder.Services.AddScoped<AdminStatisticsService>();
+builder.Services.AddScoped<OrderRepository>();
+builder.Services.AddScoped<OrderService>();
+builder.Services.AddHostedService<OrderAutoAcceptService>();
 
 builder.Services.AddSingleton<TokenService>();
 builder.Services.AddSingleton<EmailSender>();

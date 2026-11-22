@@ -11,6 +11,7 @@ import {
   storeCoupon,
   clearStoredCoupon,
 } from "../utils/coupon";
+import { DELIVERY_FEE } from "../constants/delivery";
 
 // Cart page — Feature 3
 export default function Cart() {
@@ -33,7 +34,8 @@ export default function Cart() {
   );
   const appliedCoupon = selectedCoupon?.userId === user?.id ? selectedCoupon : null;
 
-  const DELIVERY_FEE = 49.0;
+  // The delivery fee depends on the map pin, so it's set at checkout; the cart
+  // shows the starting fee and adds it to an estimated total.
 
   const subtotal = Number(
     cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0).toFixed(2),
@@ -48,7 +50,7 @@ export default function Cart() {
   const discountAmount = calcDiscount(activeCoupon, subtotal);
 
   const total =
-    subtotal - discountAmount + (cartItems.length > 0 ? DELIVERY_FEE : 0);
+    subtotal - discountAmount + (cartItems.length > 0 ? DELIVERY_FEE.BASE : 0);
 
   // Coupon validator (the server checks dates, limits and the minimum order)
   const handleApplyCoupon = async () => {
@@ -389,9 +391,12 @@ export default function Cart() {
                 </p>
               )}
 
-              <p>Delivery Fee: ₱{DELIVERY_FEE.toFixed(2)}</p>
+              <p>
+                Delivery Fee: from ₱{DELIVERY_FEE.BASE.toFixed(2)}{" "}
+                <span style={{ fontSize: 12, color: "#6b7280" }}>(set by distance at checkout)</span>
+              </p>
 
-              <h3>Total: ₱{total.toFixed(2)}</h3>
+              <h3>Total: from ₱{total.toFixed(2)}</h3>
 
               <button
                 onClick={() => navigate("checkout")}

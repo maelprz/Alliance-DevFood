@@ -1,7 +1,6 @@
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
 // Only the fields the server trusts are bound; ids, prices and totals sent by the
 // client (order_id, order_item_id, subtotal, total_amount...) are ignored and recomputed.
@@ -25,167 +24,45 @@ public record OrderPatch(string? Status, string? Actor);
 
 [ApiController]
 [Route("api/orders")]
-public class OrdersController(AppDbContext db, IConfiguration config, AdminOrdersService adminOrdersService) : ControllerBase
+// Controller layer: reads the request, calls OrderService and turns the result
+// into an HTTP response. No business logic or database access here — see
+// Services/OrderService.cs and Repositories/OrderRepository.cs.
+public class OrdersController(OrderService orderService) : ControllerBase
 {
-    public const decimal DeliveryFee = 49.00m;
-    static readonly string[] Statuses = ["Pending", "Preparing", "Ready", "Delivered", "Cancelled"];
-    // Cash on Delivery only (GCash and card were removed).
-    static readonly string[] PaymentMethods = ["cod"];
-
-    public static object ToDto(Order o) => new
-    {
-        order_id = o.Id,
-        user_id = o.UserId,
-        customerName = o.CustomerName,
-        status = o.Status,
-        subtotal = o.Subtotal,
-        delivery_fee = o.DeliveryFee,
-        coupon_code = o.CouponCode,
-        discount_amount = o.DiscountAmount,
-        total_amount = o.TotalAmount,
-        delivery_address = o.DeliveryAddress,
-        delivery_lat = o.DeliveryLat,
-        delivery_lng = o.DeliveryLng,
-        created_at = o.CreatedAt,
-        items = o.Items.OrderBy(i => i.Id).Select(i => new
-        {
-            order_item_id = i.Id,
-            order_id = o.Id,
-            food_id = i.MenuItemId,
-            name = i.Name,
-            price = i.Price,
-            quantity = i.Quantity
-        }),
-        payment = new
-        {
-            payment_id = o.Payment?.Id,
-            payment_method = o.Payment?.PaymentMethod,
-            status = o.Payment?.Status
-        }
-    };
-
-    IQueryable<Order> WithItems => db.Orders.Include(o => o.Items);
+    // Kept so AdminOrdersService can keep calling OrdersController.ToDto.
+    public static object ToDto(Order o) => OrderService.ToDto(o);
 
     [HttpGet]
     public async Task<IActionResult> GetAll([FromQuery(Name = "user_id")] int? userId)
-    {
-        var query = WithItems;
-        if (userId is not null) query = query.Where(o => o.UserId == userId);
-        var orders = await query.OrderByDescending(o => o.CreatedAt).ToListAsync();
-        return Ok(orders.Select(ToDto));
-    }
+        => Send(await orderService.GetAll(userId));
 
     // The user's latest order that is still in progress, or JSON null.
     [HttpGet("active")]
     public async Task<IActionResult> Active([FromQuery(Name = "user_id")] int userId)
     {
-        var order = await WithItems
-            .Where(o => o.UserId == userId && o.Status != "Delivered" && o.Status != "Cancelled")
-            .OrderByDescending(o => o.CreatedAt)
-            .FirstOrDefaultAsync();
+        var order = await orderService.GetInProgress(userId);
         // Ok(null) would become an empty 204, which breaks the frontend's r.json().
-        return order is null ? Content("null", "application/json") : Ok(ToDto(order));
+        return order is null ? Content("null", "application/json") : Ok(order);
     }
 
     [HttpGet("{id:int}")]
     public async Task<IActionResult> Get(int id)
-    {
-        var order = await WithItems.FirstOrDefaultAsync(o => o.Id == id);
-        return order is null ? NotFound(new { message = "Order not found." }) : Ok(ToDto(order));
-    }
+        => Send(await orderService.Get(id));
 
     [Authorize]
     [HttpPost]
     public async Task<IActionResult> Create(OrderCreate req)
-    {
-        if (req.Order is null || req.Items is null || req.Items.Count == 0)
-            return BadRequest(new { message = "An order needs a user and at least one item." });
-        var userId = User.UserId();
-        if (userId is null) return Unauthorized();
-        if (req.Order.UserId != userId.Value) return Forbid();
-        var user = await db.Users.FindAsync(userId.Value);
-        if (user is null || !user.IsActive) return NotFound(new { message = "User not found." });
-        if (string.IsNullOrWhiteSpace(req.Order.DeliveryAddress))
-            return BadRequest(new { message = "Delivery address is required." });
-
-        // Delivery zone: the map pin must be within range of the store.
-        // Checked here too, because the browser check alone can be bypassed.
-        var (lat, lng) = (req.Order.DeliveryLat, req.Order.DeliveryLng);
-        if (lat is null || lng is null || lat is < -90 or > 90 || lng is < -180 or > 180)
-            return BadRequest(new { message = "Pick your delivery spot on the map." });
-        var zone = DeliveryZone.From(config);
-        var km = zone.DistanceKm(lat.Value, lng.Value);
-        if (km > zone.MaxKm)
-            return BadRequest(new { message = $"This spot is {km:0.0} km away. We only deliver within {zone.MaxKm:0.#} km." });
-        var method = req.Payment?.PaymentMethod ?? "";
-        if (!PaymentMethods.Contains(method))
-            return BadRequest(new { message = "We only accept Cash on Delivery." });
-
-        var lines = req.Items
-            .Where(i => i.Quantity >= 1)
-            .GroupBy(i => i.FoodId)
-            .Select(g => new OrderLine(g.Key, g.Sum(x => x.Quantity)))
-            .ToList();
-        var ids = lines.Select(l => l.FoodId).ToList();
-        var menu = await db.MenuItems.Where(m => ids.Contains(m.Id)).ToDictionaryAsync(m => m.Id);
-        var missing = lines.FirstOrDefault(l => !menu.TryGetValue(l.FoodId, out var m) || !m.IsAvailable);
-        if (missing is not null)
-            return BadRequest(new { message = "One or more items are no longer available." });
-
-        var order = new Order
-        {
-            UserId = user.Id,
-            CustomerName = user.FullName,
-            DeliveryAddress = req.Order.DeliveryAddress.Trim(),
-            DeliveryLat = lat,
-            DeliveryLng = lng,
-            Payment = new Payment { PaymentMethod = method, Status = "Unpaid" },
-            DeliveryFee = DeliveryFee,
-            Items = lines.Select(l => new OrderItem
-            {
-                MenuItemId = l.FoodId,
-                Name = menu[l.FoodId].Name,
-                Price = menu[l.FoodId].Price,
-                Quantity = l.Quantity
-            }).ToList()
-        };
-        order.Subtotal = order.Items.Sum(i => i.Price * i.Quantity);
-
-        await using var transaction = await db.Database.BeginTransactionAsync();
-        if (!string.IsNullOrWhiteSpace(req.Order.CouponCode))
-        {
-            var result = await CouponService.Evaluate(db, req.Order.CouponCode, order.Subtotal, user.Id, lockForOrder: true);
-            if (result.Coupon is null) return BadRequest(new { message = result.Error });
-            order.CouponCode = result.Coupon.Code;
-            order.DiscountAmount = result.Discount;
-        }
-        order.TotalAmount = order.Subtotal - order.DiscountAmount + order.DeliveryFee;
-
-        db.Orders.Add(order);
-        db.CartItems.RemoveRange(db.CartItems.IgnoreQueryFilters().Where(c => c.UserId == user.Id));
-        await db.SaveChangesAsync();
-
-        // Order Confirmed notification (needs the generated order id, hence the second save).
-        db.Notifications.Add(new Notification
-        {
-            UserId = user.Id,
-            Type = "order_confirmed",
-            Title = "Order Confirmed",
-            Message = $"Your order #{order.Id} has been placed. Total: ₱{order.TotalAmount:0.00}.",
-            Audience = "user"
-        });
-        await db.SaveChangesAsync();
-        await transaction.CommitAsync();
-
-        return StatusCode(201, ToDto(order));
-    }
+        => Send(await orderService.Create(req, User.UserId()));
 
     [Authorize]
     [HttpPatch("{id:int}")]
     public async Task<IActionResult> Patch(int id, OrderPatch req)
+        => Send(await orderService.UpdateStatus(id, req, User));
+
+    IActionResult Send(ServiceResult result) => result.StatusCode switch
     {
-        var result = await adminOrdersService.UpdateStatus(id, req, User);
-        if (result.StatusCode == 403) return Forbid();
-        return StatusCode(result.StatusCode, result.Value);
-    }
+        401 => Unauthorized(),
+        403 => Forbid(),
+        _ => StatusCode(result.StatusCode, result.Value),
+    };
 }

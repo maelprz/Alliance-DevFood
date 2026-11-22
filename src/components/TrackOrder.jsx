@@ -3,126 +3,123 @@ import { useOrder } from "../context/useOrder";
 import { useNav } from "../context/useNav";
 import { useMenu } from "../hooks/useMenu";
 import { useOrderStatus } from "../hooks/useOrderStatus";
+import { useRiderProgress, describeTrip } from "../hooks/useRiderProgress";
+import { useCancelWindow } from "../hooks/useCancelWindow";
+import {
+  ORDER_STATUS,
+  PAYMENT_STATUS,
+  STATUS_CYCLE,
+  STEP_LABEL,
+  PAYMENT_LABEL,
+  PAYMENT_STATUS_LABEL,
+  formatTime,
+  formatDateTime,
+} from "../constants/orderStatus";
 import Navbar from "./Navbar";
 import DeliveryMap from "./DeliveryMap";
-
-// ── Status config — DO NOT MODIFY (matches ERD exactly) ──────────────────────
-const STATUS_CYCLE = ["Pending", "Preparing", "Ready", "Delivered"];
-
-const STATUS_META = {
-  Pending: {
-    label: "Pending",
-    color: "#b45309",
-    bg: "#fef3c7",
-    desc: "Order received. Awaiting kitchen confirmation.",
-  },
-  Preparing: {
-    label: "Preparing",
-    color: "#1d4ed8",
-    bg: "#dbeafe",
-    desc: "Your food is being freshly prepared.",
-  },
-  Ready: {
-    label: "Ready",
-    color: "#7c3aed",
-    bg: "#ede9fe",
-    desc: "Your food is ready and your rider is on the way.",
-  },
-  Delivered: {
-    label: "Delivered",
-    color: "#15803d",
-    bg: "#dcfce7",
-    desc: "Order delivered successfully. Enjoy your meal!",
-  },
-  Cancelled: {
-    label: "Cancelled",
-    color: "#b91c1c",
-    bg: "#fee2e2",
-    desc: "This order was cancelled.",
-  },
-};
-
-// Inline SVGs render identically across OS/browsers, unlike emoji glyphs.
-function StatusIcon({ status, color, size = 28 }) {
-  const props = {
-    width: size,
-    height: size,
-    viewBox: "0 0 24 24",
-    fill: "none",
-    stroke: color,
-    strokeWidth: 2,
-    strokeLinecap: "round",
-    strokeLinejoin: "round",
-    "aria-hidden": true,
-  };
-  switch (status) {
-    case "Pending":
-      return (
-        <svg {...props}>
-          <circle cx="12" cy="12" r="9" />
-          <path d="M12 7v5l3 2" />
-        </svg>
-      );
-    case "Preparing":
-      return (
-        <svg {...props}>
-          <path d="M6 13h12l-1 7H7z" />
-          <path d="M9 9c0-2 1-3 3-3s3 1 3 3" />
-          <path d="M5 13h14" />
-        </svg>
-      );
-    case "Ready":
-      return (
-        <svg {...props}>
-          <path d="M4 17h16" />
-          <path d="M6 17a6 6 0 0 1 12 0" />
-          <path d="M12 5v2" />
-        </svg>
-      );
-    case "Delivered":
-      return (
-        <svg {...props}>
-          <circle cx="12" cy="12" r="9" />
-          <path d="M8 12l3 3 5-6" />
-        </svg>
-      );
-    default:
-      return null;
-  }
-}
-// ─────────────────────────────────────────────────────────────────────────────
+import OrderStatusIcon from "./OrderStatusIcon";
+import CancelCountdown from "./CancelCountdown";
+import { VIEW } from "../constants/views";
 
 // ─── TrackOrder — Feature 5 (John Calen Nombrado) ────────────────────────────
-// All ERD logic is preserved exactly. Only the visual layer was updated to match
-// the approved Figma Make UI design (vertical stepper).
-// Exports only TrackOrder component — React Compiler rule
-// Friendly labels for the stored payment_method values.
-const PAYMENT_LABEL = {
-  cod: "Cash on Delivery",
-};
+// Grab-style layout: the live map fills the page and a status panel sits on
+// top of it on the right. The panel says what is happening and when, shows
+// the four steps, the drop-off address, the order summary and Cancel.
+// Logic lives in hooks/useOrderStatus.js (polling) and
+// hooks/useRiderProgress.js (rider, arrival time, panel sentences).
 
-// Payment status from the payments table. The server sets it from the order
-// status: Unpaid when placed, Paid when Delivered, Voided when Cancelled.
-const PAYMENT_STATUS_LABEL = {
-  Unpaid: "Unpaid (pay the rider in cash)",
-  Paid: "Paid",
-  Voided: "Voided",
-};
+const ORANGE = "#FF5A36";
+const PANEL_WIDTH = 380;
+const PANEL_INSET = 16;
 
-function formatDeliveredAt(iso) {
-  if (!iso) return null;
-  try {
-    return new Date(iso).toLocaleString(undefined, {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-      hour: "numeric",
-      minute: "2-digit",
-    });
-  } catch {
-    return null;
-  }
+// Placed → Preparing → On the way → Delivered, as icons joined by a line.
+// Each label sits centred directly under its own icon.
+function StepIcons({ currentIdx }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 6,
+        // Room for the labels under the icons, and for the first/last label
+        // to stay centred under its icon without leaving the panel.
+        padding: "0 14px 22px",
+      }}
+    >
+      {STATUS_CYCLE.map((stage, i) => {
+        const done = i <= currentIdx;
+        const current = i === currentIdx;
+        return (
+          <div key={stage} style={{ display: "contents" }}>
+            <div style={{ position: "relative", flexShrink: 0 }}>
+              <div
+                style={{
+                  width: 34,
+                  height: 34,
+                  borderRadius: "50%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  background: done ? ORANGE : "#f3f4f6",
+                  boxShadow: current ? "0 0 0 4px rgba(255, 90, 54, 0.2)" : "none",
+                  transition: "background 0.3s",
+                }}
+              >
+                <OrderStatusIcon status={stage} color={done ? "#fff" : "#9ca3af"} size={18} />
+              </div>
+              <span
+                style={{
+                  position: "absolute",
+                  top: 40,
+                  left: "50%",
+                  transform: "translateX(-50%)",
+                  whiteSpace: "nowrap",
+                  fontSize: 11,
+                  color: current ? "#c2410c" : "#6b7280",
+                  fontWeight: current ? 600 : 400,
+                }}
+              >
+                {STEP_LABEL[stage]}
+              </span>
+            </div>
+            {i < STATUS_CYCLE.length - 1 && (
+              <div
+                style={{
+                  flex: 1,
+                  height: 3,
+                  borderRadius: 2,
+                  background: i < currentIdx ? ORANGE : "#e5e7eb",
+                  transition: "background 0.4s",
+                }}
+              />
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
 }
+
+function Row({ label, value, strong = false, color }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        justifyContent: "space-between",
+        gap: 12,
+        fontSize: strong ? 15 : 13,
+        fontWeight: strong ? 700 : 400,
+        padding: "3px 0",
+      }}
+    >
+      <span style={{ color: color ?? (strong ? "#111827" : "#6b7280") }}>{label}</span>
+      <span style={{ color: color ?? (strong ? ORANGE : "#111827"), textAlign: "right" }}>{value}</span>
+    </div>
+  );
+}
+
+const sectionStyle = { borderTop: "1px solid #f3f4f6", paddingTop: 14 };
+const smallLabel = { fontSize: 12, color: "#6b7280", margin: "0 0 4px" };
 
 export default function TrackOrder() {
   const {
@@ -141,13 +138,21 @@ export default function TrackOrder() {
   // Follows the status the admin sets (polls every second).
   useOrderStatus();
 
+  const hasMap = activeOrder?.delivery_lat != null && activeOrder?.delivery_lng != null;
+  const trip = useRiderProgress({
+    orderId: activeOrder?.order_id,
+    status: activeOrder?.status,
+    dropoff: hasMap ? { lat: activeOrder.delivery_lat, lng: activeOrder.delivery_lng } : null,
+  });
+
   const currentIdx = activeOrder
     ? STATUS_CYCLE.indexOf(activeOrder.status)
     : -1;
-  const isDelivered = activeOrder?.status === "Delivered";
-  // Cancellation is only allowed while the kitchen hasn't started — i.e. Pending.
-  const canCancel = activeOrder?.status === "Pending";
-  const meta = activeOrder ? STATUS_META[activeOrder.status || "Pending"] : STATUS_META["Pending"];
+  const isDelivered = activeOrder?.status === ORDER_STATUS.DELIVERED;
+  // Cancel is allowed only during the cancel window after placing. When it
+  // ends, the server accepts the order automatically (Pending -> Preparing).
+  const cancelWindow = useCancelWindow(activeOrder);
+  const canCancel = activeOrder?.status === ORDER_STATUS.PENDING && cancelWindow.canCancel;
 
   // Skeleton while the active order is being fetched from the server.
   // Prevents the empty-state flash on first render after login/refresh.
@@ -224,7 +229,7 @@ export default function TrackOrder() {
   }
 
   // Cancelled by the kitchen/admin while the customer was watching.
-  if (activeOrder?.status === "Cancelled") {
+  if (activeOrder?.status === ORDER_STATUS.CANCELLED) {
     return (
       <div style={{ minHeight: "100vh", background: "transparent" }}>
         <Navbar />
@@ -249,7 +254,7 @@ export default function TrackOrder() {
             <button
               onClick={() => {
                 setActiveOrder(null);
-                navigate("menu");
+                navigate(VIEW.MENU);
               }}
               style={{
                 padding: "10px 24px",
@@ -287,7 +292,7 @@ export default function TrackOrder() {
             No active order found.
           </p>
           <button
-            onClick={() => navigate("checkout")}
+            onClick={() => navigate(VIEW.CHECKOUT)}
             style={{
               padding: "10px 24px",
               background: "#FF5A36",
@@ -307,465 +312,181 @@ export default function TrackOrder() {
     );
   }
 
-  return (
-    <div
-      style={{ minHeight: "100vh", background: "transparent" }}
-      className="track-page"
-    >
-      <Navbar />
 
-      <div
-        style={{ maxWidth: 700, margin: "0 auto", padding: "32px 16px" }}
-        className="track-content"
-      >
-        {/* Back */}
-        <button
-          onClick={() => navigate("menu")}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 6,
-            background: "none",
-            border: "none",
-            color: "#6b7280",
-            fontSize: 14,
-            cursor: "pointer",
-            marginBottom: 24,
-            fontFamily: "inherit",
-          }}
-        >
-          Back to Menu
-        </button>
+  const text = describeTrip(activeOrder.status, trip);
+  const total = (activeOrder.total_amount ?? 0).toFixed(2);
+  const paid = activePayment?.status === PAYMENT_STATUS.PAID;
 
-        {/* Main card */}
-        <div
-          style={{
-            background: "#ffffff",
-            borderRadius: 16,
-            border: "1px solid #f3e8df",
-            padding: 0,
-            marginBottom: 16,
-            overflow: "hidden",
-            boxShadow: "0 4px 20px rgba(31, 41, 55, 0.04)",
-          }}
-        >
-          {/* Warm hero strip — sets the food-delivery tone right at the top. */}
-          <div
-            style={{
-              height: 6,
-              background:
-                "linear-gradient(90deg, #FF5A36 0%, #FB923C 50%, #FBBF24 100%)",
-            }}
-          />
-          <div style={{ padding: 32 }}>
-            {/* Header */}
-            <div style={{ textAlign: "center", marginBottom: 32 }}>
-              <h1
-                style={{
-                  fontSize: 26,
-                  fontWeight: 700,
-                  color: "#111827",
-                  margin: "0 0 8px",
-                }}
-              >
-                {activeOrder.status === "Pending"
-                  ? "Order Placed Successfully!"
-                  : activeOrder.status === "Delivered"
-                  ? "Order Delivered"
-                  : "Track Your Order"}
-              </h1>
-              <p style={{ color: "#6b7280", fontSize: 14, margin: 0 }}>
-                Order ID:{" "}
-                <span
-                  style={{
-                    fontWeight: 600,
-                    color: "#111827",
-                    fontFamily: "monospace",
-                  }}
-                >
-                  #{activeOrder.order_id}
-                </span>
-              </p>
-            </div>
-
-            {/* ── Vertical stepper ─────────────────────────────────────────── */}
-            <div style={{ marginBottom: 32 }}>
-              {STATUS_CYCLE.map((stage, i) => {
-                const isCompleted = i <= currentIdx;
-                const isCurrent = i === currentIdx;
-                const descriptions = {
-                  Pending: "Order Received",
-                  Preparing: "In the Kitchen",
-                  Ready: "Rider on the way",
-                  Delivered: "Enjoy Your Meal!",
-                };
-
-                return (
-                  <div
-                    key={stage}
-                    style={{ display: "flex", gap: 16, position: "relative" }}
-                  >
-                    {/* Connector line */}
-                    {i < STATUS_CYCLE.length - 1 && (
-                      <div
-                        style={{
-                          position: "absolute",
-                          left: 19,
-                          top: 44,
-                          width: 2,
-                          height: 56,
-                          background: i < currentIdx ? "#FF5A36" : "#e5e7eb",
-                          transition: "background 0.4s",
-                          zIndex: 0,
-                        }}
-                      />
-                    )}
-
-                    {/* Circle */}
-                    <div
-                      style={{
-                        width: 40,
-                        height: 40,
-                        borderRadius: "50%",
-                        background: isCompleted ? "#FF5A36" : "#f3f4f6",
-                        color: isCompleted ? "#fff" : "#9ca3af",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        fontSize: 18,
-                        flexShrink: 0,
-                        zIndex: 1,
-                        boxShadow: isCurrent
-                          ? "0 0 0 4px rgba(255, 90, 54, 0.22)"
-                          : "none",
-                        transition: "all 0.3s",
-                      }}
-                    >
-                      <StatusIcon
-                        status={stage}
-                        color={isCompleted ? "#fff" : "#9ca3af"}
-                        size={20}
-                      />
-                    </div>
-
-                    {/* Label */}
-                    <div style={{ paddingTop: 6, paddingBottom: 32 }}>
-                      <h3
-                        style={{
-                          fontSize: 16,
-                          fontWeight: 600,
-                          color: isCurrent
-                            ? "#FF5A36"
-                            : isCompleted
-                            ? "#111827"
-                            : "#6b7280",
-                          margin: "0 0 2px",
-                          transition: "color 0.3s",
-                        }}
-                      >
-                        {stage}
-                      </h3>
-                      <p style={{ fontSize: 13, color: "#6b7280", margin: 0 }}>
-                        {descriptions[stage]}
-                      </p>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* ── Status banner ─────────────────────────────────────────────── */}
-            {/* aria-live=polite announces status changes to screen readers without
-              interrupting; aria-atomic ensures the full new status reads, not a diff. */}
-            <div
-              aria-live="polite"
-              aria-atomic="true"
-              style={{
-                display: "flex",
-                gap: 14,
-                alignItems: "center",
-                padding: "14px 16px",
-                background: meta.bg,
-                border: `1px solid ${meta.color}33`,
-                borderLeft: `4px solid ${meta.color}`,
-                borderRadius: 10,
-                marginBottom: 28,
-              }}
-            >
-              <StatusIcon status={activeOrder.status} color={meta.color} />
-              <div>
-                <p
-                  style={{
-                    fontSize: 16,
-                    fontWeight: 700,
-                    color: meta.color,
-                    margin: "0 0 2px",
-                  }}
-                >
-                  {meta.label}
-                </p>
-                <p style={{ fontSize: 13, color: "#4b5563", margin: 0 }}>
-                  {meta.desc}
-                </p>
-              </div>
-            </div>
-
-            {/* ── Live delivery map (simulated rider) — orders with a map pin ── */}
-            {activeOrder.delivery_lat != null && activeOrder.delivery_lng != null && (
-              <DeliveryMap
-                orderId={activeOrder.order_id}
-                status={activeOrder.status}
-                dropoff={{ lat: activeOrder.delivery_lat, lng: activeOrder.delivery_lng }}
-              />
-            )}
-
-            {/* ── Order Details (ERD fields) ─────────────────────────────────── */}
-            <div
-              style={{
-                background: "#fdf6ef",
-                borderRadius: 12,
-                padding: 24,
-                border: "1px solid #f3e8df",
-              }}
-            >
-              <h2
-                style={{
-                  fontSize: 16,
-                  fontWeight: 600,
-                  color: "#111827",
-                  margin: "0 0 16px",
-                }}
-              >
-                Order Details
-              </h2>
-
-              {/* Order details fields */}
-              {[
-                ["Status", activeOrder.status, true],
-                ["Payment Method", PAYMENT_LABEL[activePayment?.payment_method] ?? activePayment?.payment_method ?? "—", false],
-                ["Payment", PAYMENT_STATUS_LABEL[activePayment?.status] ?? activePayment?.status ?? "—", false],
-                ["Delivery Address", activeOrder.delivery_address ?? "—", false],
-                ["Order Placed", activeOrder.created_at ? new Date(activeOrder.created_at).toLocaleString(undefined, { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" }) : "—", false],
-              ].map(([key, val, isStatus]) => (
-                <div
-                  key={key}
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    padding: "8px 0",
-                    borderBottom: "1px solid #e5e7eb",
-                    fontSize: 14,
-                    gap: 12,
-                  }}
-                >
-                  <span style={{ color: "#6b7280" }}>{key}</span>
-                  <span
-                    style={{
-                      fontWeight: 600,
-                      color: isStatus ? meta.color : "#111827",
-                      textAlign: "right",
-                    }}
-                  >
-                    {String(val)}
-                  </span>
-                </div>
-              ))}
-
-              {/* Divider */}
-              <div
-                style={{ height: 1, background: "#d1d5db", margin: "16px 0" }}
-              />
-
-              {/* OrderItems */}
-              <h3
-                style={{
-                  fontSize: 14,
-                  fontWeight: 600,
-                  color: "#374151",
-                  margin: "0 0 12px",
-                }}
-              >
-                Order Items
-              </h3>
-              {orderItems.map((oi) => {
-                // Prefer the live menu (authoritative price), but fall back to
-                // the snapshot stored on the order item itself so deleted/renamed
-                // menu entries still display correctly.
-                const food = menuItems.find((f) => f.food_id === oi.food_id);
-                const displayName = food?.name ?? oi.name ?? "Item";
-                const lineTotal = food
-                  ? food.price * oi.quantity
-                  : (oi.price ?? 0) * oi.quantity;
-                return (
-                  <div
-                    key={oi.order_item_id}
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      fontSize: 14,
-                      padding: "6px 0",
-                      borderBottom: "1px solid #e5e7eb",
-                    }}
-                  >
-                    <span style={{ color: "#6b7280" }}>
-                      {oi.quantity}× {displayName}
-                    </span>
-                    <span style={{ color: "#FF5A36", fontWeight: 600 }}>
-                      ₱{lineTotal.toFixed(2)}
-                    </span>
-                  </div>
-                );
-              })}
-
-              {/* Pricing Breakdown */}
-<div style={{ marginTop: 16 }}>
-  <div
-    style={{
-      display: "flex",
-      justifyContent: "space-between",
-      fontSize: 14,
-      padding: "6px 0",
-    }}
-  >
-    <span style={{ color: "#6b7280" }}>Subtotal</span>
-    <span>₱{(activeOrder.subtotal ?? 0).toFixed(2)}</span>
-  </div>
-
-  {activeOrder.discount_amount > 0 && (
+  // ── Status panel (sits on the map, or alone for orders without a pin) ────
+  const panel = (
     <div
       style={{
         display: "flex",
-        justifyContent: "space-between",
-        fontSize: 14,
-        padding: "6px 0",
+        flexDirection: "column",
+        gap: 16,
+        padding: 20,
+        minHeight: "100%",
+        boxSizing: "border-box",
       }}
     >
-      <span style={{ color: "#16a34a" }}>
-        Discount ({activeOrder.coupon_code})
-      </span>
+      {/* What is happening and when — announced to screen readers on change. */}
+      <div aria-live="polite" aria-atomic="true">
+        <h1 style={{ fontSize: 20, fontWeight: 700, color: "#111827", margin: 0, lineHeight: 1.3 }}>
+          {text.title}
+        </h1>
+        {text.subtitle && (
+          <p style={{ fontSize: 13, color: "#6b7280", margin: "4px 0 0" }}>{text.subtitle}</p>
+        )}
+      </div>
 
-      <span style={{ color: "#16a34a", fontWeight: 600 }}>
-        -₱{(activeOrder.discount_amount ?? 0).toFixed(2)}
-      </span>
-    </div>
-  )}
+      <StepIcons currentIdx={currentIdx} />
 
-  <div
-    style={{
-      display: "flex",
-      justifyContent: "space-between",
-      fontSize: 14,
-      padding: "6px 0",
-      borderBottom: "1px solid #e5e7eb",
-    }}
-  >
-    <span style={{ color: "#6b7280" }}>Delivery Fee</span>
+      {text.hint && (
+        <div
+          style={{
+            background: "#fff4f0",
+            color: "#9a3412",
+            borderRadius: 8,
+            padding: "9px 12px",
+            fontSize: 13,
+          }}
+        >
+          {text.hint}
+        </div>
+      )}
+      {isDelivered && (
+        <div
+          role="status"
+          style={{
+            background: "#dcfce7",
+            color: "#166534",
+            borderRadius: 8,
+            padding: "9px 12px",
+            fontSize: 13,
+            fontWeight: 500,
+          }}
+        >
+          {paid ? `Payment received · ₱${total} paid in cash` : "Delivered · thank you for ordering"}
+        </div>
+      )}
 
-    <span>
-      ₱{(activeOrder.delivery_fee ?? 0).toFixed(2)}
-    </span>
-  </div>
-</div>
+      <div style={sectionStyle}>
+        <p style={smallLabel}>Deliver to</p>
+        <p style={{ fontSize: 14, color: "#111827", margin: 0 }}>
+          {activeOrder.delivery_address ?? "—"}
+        </p>
+      </div>
 
-{/* Total */}
-<div
-  style={{
-    display: "flex",
-    justifyContent: "space-between",
-    fontSize: 16,
-    fontWeight: 700,
-    marginTop: 16,
-  }}
->
-  <span>Total</span>
+      <div style={sectionStyle}>
+        {/* Full breakdown always shown — no hidden "Details" toggle. */}
+        <p style={{ ...smallLabel, marginBottom: 6 }}>
+          Order #{activeOrder.order_id} ·{" "}
+          {PAYMENT_LABEL[activePayment?.payment_method] ?? activePayment?.payment_method ?? "—"}
+        </p>
 
-  <span style={{ color: "#FF5A36" }}>
-    ₱{(activeOrder.total_amount ?? 0).toFixed(2)}
-  </span>
-</div>
-            </div>
-          </div>
+        {orderItems.map((oi) => {
+          // Prefer the live menu (authoritative price), but fall back to
+          // the snapshot stored on the order item itself so deleted/renamed
+          // menu entries still display correctly.
+          const food = menuItems.find((f) => f.food_id === oi.food_id);
+          const displayName = food?.name ?? oi.name ?? "Item";
+          const lineTotal = food ? food.price * oi.quantity : (oi.price ?? 0) * oi.quantity;
+          return (
+            <Row
+              key={oi.order_item_id}
+              label={`${oi.quantity}× ${displayName}`}
+              value={`₱${lineTotal.toFixed(2)}`}
+            />
+          );
+        })}
+
+        <Row label="Subtotal" value={`₱${(activeOrder.subtotal ?? 0).toFixed(2)}`} />
+        {activeOrder.discount_amount > 0 && (
+          <Row
+            label={`Discount (${activeOrder.coupon_code})`}
+            value={`-₱${(activeOrder.discount_amount ?? 0).toFixed(2)}`}
+            color="#16a34a"
+          />
+        )}
+        <Row label="Delivery fee" value={`₱${(activeOrder.delivery_fee ?? 0).toFixed(2)}`} />
+        <div style={{ borderTop: "1px solid #f3f4f6", marginTop: 6, paddingTop: 6 }}>
+          <Row strong label={isDelivered ? "Total paid" : "Total to pay"} value={`₱${total}`} />
         </div>
 
-        {/* ── Cancel Order — only available while still Pending ────────────── */}
-        {canCancel && !showCancelConfirm && (
-          <div style={{ textAlign: "right", marginBottom: 12 }}>
-            <button
-              onClick={() => {
-                setCancelError(null);
-                setShowCancelConfirm(true);
-              }}
-              style={{
-                padding: "8px 18px",
-                background: "#fff",
-                border: "1px solid #fca5a5",
-                borderRadius: 8,
-                color: "#dc2626",
-                fontSize: 13,
-                fontWeight: 500,
-                cursor: "pointer",
-                fontFamily: "inherit",
-              }}
-            >
-              Cancel Order
-            </button>
+        <div style={{ marginTop: 8 }}>
+          <Row
+            label="Payment"
+            value={PAYMENT_STATUS_LABEL[activePayment?.status] ?? activePayment?.status ?? "—"}
+          />
+          <Row label="Placed" value={formatDateTime(activeOrder.created_at) ?? "—"} />
+        </div>
+      </div>
+
+      {/* ── Bottom: countdown + Cancel during the window, otherwise why it's closed ── */}
+      <div style={{ marginTop: "auto", ...sectionStyle }}>
+        {canCancel && (
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
+            <CancelCountdown progress={cancelWindow.progress} label={cancelWindow.label} />
+            <div>
+              <p style={{ fontSize: 13, fontWeight: 600, color: "#111827", margin: 0 }}>
+                Free to cancel
+              </p>
+              <p style={{ fontSize: 12, color: "#6b7280", margin: "2px 0 0" }}>
+                The kitchen starts when the timer ends
+              </p>
+            </div>
           </div>
         )}
 
-        {/* Locked notice once the kitchen has started — explains why no cancel button. */}
-        {(activeOrder?.status === "Preparing" || activeOrder?.status === "Ready") && (
-          <div
+        {canCancel && !showCancelConfirm && (
+          <button
+            onClick={() => {
+              setCancelError(null);
+              setShowCancelConfirm(true);
+            }}
             style={{
-              border: "1px solid #fde68a",
-              background: "#fffbeb",
-              borderRadius: 10,
-              padding: "10px 14px",
-              marginBottom: 12,
+              width: "100%",
+              padding: "10px",
+              background: "#fff",
+              border: "1px solid #fca5a5",
+              borderRadius: 8,
+              color: "#dc2626",
               fontSize: 13,
-              color: "#92400e",
+              fontWeight: 500,
+              cursor: "pointer",
+              fontFamily: "inherit",
             }}
           >
-            Cancellation is locked — the kitchen is already preparing your order.
-          </div>
+            Cancel Order
+          </button>
         )}
 
         {canCancel && showCancelConfirm && (
           <div
+            role="alertdialog"
+            aria-label="Confirm cancel order"
             style={{
               border: "1px solid #fca5a5",
               borderRadius: 10,
               background: "#fef2f2",
-              padding: 14,
-              marginBottom: 12,
+              padding: 12,
               display: "flex",
               flexDirection: "column",
               gap: 10,
             }}
-            role="alertdialog"
-            aria-label="Confirm cancel order"
           >
-            <p
-              style={{
-                fontSize: 13,
-                color: "#991b1b",
-                margin: 0,
-                fontWeight: 500,
-              }}
-            >
+            <p style={{ fontSize: 13, color: "#991b1b", margin: 0, fontWeight: 500 }}>
               Cancel this order? This action cannot be undone.
             </p>
             {cancelError && (
-              <p style={{ fontSize: 12, color: "#991b1b", margin: 0 }}>
-                {cancelError}
-              </p>
+              <p style={{ fontSize: 12, color: "#991b1b", margin: 0 }}>{cancelError}</p>
             )}
-            <div
-              style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}
-            >
+            <div style={{ display: "flex", gap: 8 }}>
               <button
                 onClick={() => setShowCancelConfirm(false)}
                 style={{
-                  padding: "8px 16px",
+                  flex: 1,
+                  padding: "8px 12px",
                   borderRadius: 8,
                   border: "1px solid #e5e7eb",
                   background: "#fff",
@@ -782,13 +503,14 @@ export default function TrackOrder() {
                 onClick={async () => {
                   const result = await cancelOrder();
                   if (result?.success) {
-                    navigate("menu");
+                    navigate(VIEW.MENU);
                   } else {
                     setCancelError(result?.message || "Failed to cancel.");
                   }
                 }}
                 style={{
-                  padding: "8px 16px",
+                  flex: 1,
+                  padding: "8px 12px",
                   borderRadius: 8,
                   border: "none",
                   background: "#dc2626",
@@ -805,149 +527,136 @@ export default function TrackOrder() {
           </div>
         )}
 
-        {/* Delivery-app style paid summary — only shown after delivery completes. */}
+        {/* Window just ended; the server moves it to Preparing within a few seconds. */}
+        {activeOrder.status === ORDER_STATUS.PENDING && !canCancel && (
+          <p role="status" style={{ fontSize: 12, color: "#6b7280", margin: 0, textAlign: "center" }}>
+            Order confirmed · cancellation closed, the kitchen is starting your order
+          </p>
+        )}
+
+        {(activeOrder.status === ORDER_STATUS.PREPARING || activeOrder.status === ORDER_STATUS.READY) && (
+          <p style={{ fontSize: 12, color: "#6b7280", margin: 0, textAlign: "center" }}>
+            Cancellation closed · the kitchen has started your order
+          </p>
+        )}
+
         {isDelivered && (
-          <div
+          <button
+            onClick={() => navigate(VIEW.MENU)}
+            className="track-cta"
             style={{
-              background: "#ffffff",
-              border: "1px solid #bbf7d0",
-              borderRadius: 12,
-              overflow: "hidden",
-              boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
+              width: "100%",
+              padding: "11px",
+              background: ORANGE,
+              color: "#fff",
+              border: "none",
+              borderRadius: 8,
+              fontSize: 14,
+              fontWeight: 600,
+              cursor: "pointer",
+              fontFamily: "inherit",
             }}
           >
-            {/* Green header — the "PAID" stamp */}
-            <div
-              style={{
-                background: "#dcfce7",
-                padding: "20px 24px",
-                display: "flex",
-                alignItems: "center",
-                gap: 12,
-                borderBottom: "1px solid #bbf7d0",
-              }}
-            >
-              <div
-                style={{
-                  width: 40,
-                  height: 40,
-                  borderRadius: "50%",
-                  background: "#15803d",
-                  color: "#fff",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  flexShrink: 0,
-                }}
-              >
-                <svg
-                  width="22"
-                  height="22"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth={3}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden="true"
-                >
-                  <path d="M5 12l5 5L20 7" />
-                </svg>
-              </div>
-              <div>
-                <p
-                  style={{
-                    fontSize: 15,
-                    fontWeight: 700,
-                    color: "#15803d",
-                    margin: 0,
-                  }}
-                >
-                  Payment Successful
-                </p>
-                <p
-                  style={{ fontSize: 12, color: "#166534", margin: "2px 0 0" }}
-                >
-                  Your order has been delivered.
-                </p>
-              </div>
-            </div>
-
-            {/* Total paid — large, the focal point */}
-            <div style={{ padding: "24px", textAlign: "center" }}>
-              <p
-                style={{
-                  fontSize: 12,
-                  color: "#6b7280",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.06em",
-                  margin: 0,
-                }}
-              >
-                Total Paid
-              </p>
-              <p
-                style={{
-                  fontSize: 36,
-                  fontWeight: 700,
-                  color: "#111827",
-                  margin: "6px 0 0",
-                  fontVariantNumeric: "tabular-nums",
-                }}
-              >
-                ₱{(activeOrder.total_amount ?? 0).toFixed(2)}
-              </p>
-            </div>
-
-            {/* Meta rows — payment method, order id, delivered timestamp */}
-            <div style={{ padding: "0 24px 20px" }}>
-              <div
-                style={{ height: 1, background: "#f3f4f6", marginBottom: 14 }}
-              />
-              {[
-                [
-                  "Paid via",
-                  PAYMENT_LABEL[activePayment?.payment_method] ?? "—",
-                ],
-                ["Order #", String(activeOrder.order_id)],
-                [
-                  "Ordered",
-                  formatDeliveredAt(activeOrder.created_at) ?? "—",
-                ],
-              ].map(([label, value]) => (
-                <div
-                  key={label}
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    fontSize: 13,
-                    padding: "6px 0",
-                  }}
-                >
-                  <span style={{ color: "#6b7280" }}>{label}</span>
-                  <span style={{ color: "#111827", fontWeight: 500 }}>
-                    {value}
-                  </span>
-                </div>
-              ))}
-            </div>
-
-            {/* Footer — light affirmation */}
-            <div
-              style={{
-                background: "transparent",
-                padding: "14px 24px",
-                textAlign: "center",
-                fontSize: 12,
-                color: "#6b7280",
-                borderTop: "1px solid #f3f4f6",
-              }}
-            >
-              Thank you for ordering with DevFood.
-            </div>
-          </div>
+            Order Again
+          </button>
         )}
       </div>
+    </div>
+  );
+
+  const panelBox = {
+    background: "#ffffff",
+    borderRadius: 14,
+    border: "1px solid #f3e8df",
+    boxShadow: "0 8px 24px rgba(31, 41, 55, 0.12)",
+  };
+
+  return (
+    <div style={{ minHeight: "100vh", background: "transparent" }}>
+      <Navbar />
+
+      <div style={{ maxWidth: 1240, margin: "0 auto", padding: "16px 24px 24px" }}>
+        {/* Back + order line */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            marginBottom: 12,
+          }}
+        >
+          <button
+            onClick={() => navigate(VIEW.MENU)}
+            style={{
+              background: "none",
+              border: "none",
+              color: "#6b7280",
+              fontSize: 14,
+              cursor: "pointer",
+              padding: 0,
+              fontFamily: "inherit",
+            }}
+          >
+            ← Back to Menu
+          </button>
+          <span style={{ fontSize: 13, color: "#6b7280" }}>
+            Order{" "}
+            <span style={{ fontFamily: "monospace", fontWeight: 600, color: "#111827" }}>
+              #{activeOrder.order_id}
+            </span>
+            {activeOrder.created_at && ` · placed ${formatTime(activeOrder.created_at)}`}
+          </span>
+        </div>
+
+        {hasMap ? (
+          // Map fills the stage; the panel floats over its right side.
+          <div
+            style={{
+              position: "relative",
+              height: "calc(100vh - 64px - 16px - 24px - 34px)",
+              minHeight: 600,
+              borderRadius: 16,
+              overflow: "hidden",
+              border: "1px solid #e5e7eb",
+              background: "#f3f4f6",
+            }}
+          >
+            <DeliveryMap
+              dropoff={{ lat: activeOrder.delivery_lat, lng: activeOrder.delivery_lng }}
+              route={trip.route}
+              fraction={trip.fraction}
+              padRight={PANEL_WIDTH + PANEL_INSET + 40}
+            />
+            <aside
+              aria-label="Order status"
+              style={{
+                ...panelBox,
+                position: "absolute",
+                top: PANEL_INSET,
+                right: PANEL_INSET,
+                bottom: PANEL_INSET,
+                width: PANEL_WIDTH,
+                overflowY: "auto",
+                zIndex: 1,
+              }}
+            >
+              {panel}
+            </aside>
+          </div>
+        ) : (
+          // Orders placed before the map pin existed: panel on its own.
+          <aside
+            aria-label="Order status"
+            style={{ ...panelBox, maxWidth: 440, margin: "24px auto 0" }}
+          >
+            {panel}
+          </aside>
+        )}
+      </div>
+
+      <style>{`
+        .track-cta:hover { background: #e84a28 !important; }
+      `}</style>
     </div>
   );
 }

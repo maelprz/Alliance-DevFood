@@ -1,6 +1,8 @@
 import Navbar from "./Navbar";
 import AddressPicker from "./AddressPicker";
 import { useCheckout } from "../hooks/useCheckout";
+import { PAYMENT_METHOD } from "../constants/orderStatus";
+import { VIEW } from "../constants/views";
 
 // Inline SVG payment-method icons — render identically across OS/browsers.
 function PaymentIcon({ kind, color = "#374151" }) {
@@ -15,7 +17,7 @@ function PaymentIcon({ kind, color = "#374151" }) {
     strokeLinejoin: "round",
     "aria-hidden": true,
   };
-  if (kind === "cod") {
+  if (kind === PAYMENT_METHOD.COD) {
     return (
       <svg {...props}>
         <rect x="2" y="7" width="20" height="11" rx="2" />
@@ -39,19 +41,19 @@ export default function Checkout() {
     lineItems,
     subtotal,
     deliveryFee,
+    deliveryKm,
+    feeIsEstimate,
     appliedCoupon,
     discountAmount,
     total_amount,
     savedAddress,
+    orderInProgress,
     fieldErrors,
     error,
     loading,
     placed,
-    showConfirm,
     changeLocation,
-    requestConfirm,
-    dismissConfirm,
-    confirmOrder,
+    placeOrderNow,
   } = useCheckout();
 
   // Empty cart guard — block checkout if there is nothing to order
@@ -71,7 +73,7 @@ export default function Checkout() {
             Your cart is empty. Add items before checking out.
           </p>
           <button
-            onClick={() => navigate("menu")}
+            onClick={() => navigate(VIEW.MENU)}
             style={{
               padding: "10px 24px",
               background: "#FF5A36",
@@ -100,7 +102,7 @@ export default function Checkout() {
       <div style={{ maxWidth: 896, margin: "0 auto", padding: "32px 16px" }}>
         {/* Back */}
         <button
-          onClick={() => navigate("cart")}
+          onClick={() => navigate(VIEW.CART)}
           style={{
             display: "flex",
             alignItems: "center",
@@ -203,7 +205,7 @@ export default function Checkout() {
                   background: "#fff7ed",
                 }}
               >
-                <PaymentIcon kind="cod" color="#FF5A36" />
+                <PaymentIcon kind={PAYMENT_METHOD.COD} color="#FF5A36" />
                 <span style={{ fontSize: 14, fontWeight: 500, color: "#374151" }}>
                   Cash on Delivery
                 </span>
@@ -296,8 +298,12 @@ export default function Checkout() {
                     fontSize: 14,
                   }}
                 >
-                  <span style={{ color: "#6b7280" }}>Delivery Fee</span>
-                  <span>₱{deliveryFee.toFixed(2)}</span>
+                  <span style={{ color: "#6b7280" }}>
+                    Delivery Fee{deliveryKm != null && ` · ${deliveryKm.toFixed(1)} km`}
+                  </span>
+                  <span>
+                    {feeIsEstimate && "from "}₱{deliveryFee.toFixed(2)}
+                  </span>
                 </div>
 
                 {appliedCoupon && (
@@ -331,7 +337,7 @@ export default function Checkout() {
                 >
                   <span>Total Amount</span>
                   <span style={{ color: "#FF5A36" }}>
-                    ₱{total_amount.toFixed(2)}
+                    {feeIsEstimate && "from "}₱{total_amount.toFixed(2)}
                   </span>
                 </div>
 
@@ -352,69 +358,49 @@ export default function Checkout() {
                   </p>
                 )}
 
-                {/* Confirmation prompt — shown after first click */}
-                {showConfirm ? (
+                {/* One order at a time — instead of Place Order while another order is live. */}
+                {orderInProgress ? (
                   <div
+                    role="status"
                     style={{
-                      border: "1px solid #fbbf24",
+                      border: "1px solid #ffd2c4",
                       borderRadius: 8,
-                      background: "#fffbeb",
-                      padding: "14px",
+                      background: "#fff4f0",
+                      padding: 14,
                       display: "flex",
                       flexDirection: "column",
                       gap: 10,
                     }}
                   >
-                    <p
+                    <p style={{ fontSize: 13, color: "#9a3412", margin: 0, fontWeight: 600 }}>
+                      You already have an order in progress
+                    </p>
+                    <p style={{ fontSize: 13, color: "#9a3412", margin: 0 }}>
+                      Order #{orderInProgress.order_id} is {orderInProgress.status.toLowerCase()}. You
+                      can place a new order once it's delivered. Your cart is saved.
+                    </p>
+                    <button
+                      onClick={() => navigate(VIEW.TRACK)}
+                      className="checkout-cta"
                       style={{
-                        fontSize: 13,
-                        color: "#92400e",
-                        margin: 0,
-                        fontWeight: 500,
+                        width: "100%",
+                        padding: "11px",
+                        borderRadius: 8,
+                        border: "none",
+                        background: "#FF5A36",
+                        color: "#fff",
+                        fontSize: 14,
+                        fontWeight: 600,
+                        cursor: "pointer",
+                        fontFamily: "inherit",
                       }}
                     >
-                      Confirm your order for ₱{total_amount.toFixed(2)}?
-                    </p>
-                    <div style={{ display: "flex", gap: 8 }}>
-                      <button
-                        onClick={confirmOrder}
-                        style={{
-                          flex: 1,
-                          padding: "10px",
-                          borderRadius: 8,
-                          border: "none",
-                          background: "#FF5A36",
-                          color: "#fff",
-                          fontSize: 14,
-                          fontWeight: 600,
-                          cursor: "pointer",
-                          fontFamily: "inherit",
-                        }}
-                      >
-                        Yes, Place Order
-                      </button>
-                      <button
-                        onClick={dismissConfirm}
-                        style={{
-                          flex: 1,
-                          padding: "10px",
-                          borderRadius: 8,
-                          border: "1px solid #e5e7eb",
-                          background: "#fff",
-                          color: "#374151",
-                          fontSize: 14,
-                          fontWeight: 500,
-                          cursor: "pointer",
-                          fontFamily: "inherit",
-                        }}
-                      >
-                        Cancel
-                      </button>
-                    </div>
+                      Track your order
+                    </button>
                   </div>
                 ) : (
                   <button
-                    onClick={requestConfirm}
+                    onClick={placeOrderNow}
                     disabled={loading || placed}
                     aria-busy={loading}
                     aria-label={

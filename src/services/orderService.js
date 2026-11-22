@@ -1,4 +1,8 @@
 import { authHeaders } from "./authService";
+import { API_BASE } from "../constants/auth";
+import { ORDER_STATUS } from "../constants/orderStatus";
+
+const ORDERS_URL = `${API_BASE}/orders`;
 
 // orderService — every /api/orders call for Place Order and Track Order.
 // Views and providers call these instead of using fetch directly.
@@ -13,7 +17,7 @@ export function splitOrderRecord(record) {
 // can keep their current copy.
 export async function fetchAllOrders() {
   try {
-    const res = await fetch("/api/orders");
+    const res = await fetch(ORDERS_URL);
     if (!res.ok) return null;
     return await res.json();
   } catch {
@@ -23,14 +27,14 @@ export async function fetchAllOrders() {
 
 // The user's active order record, or null when there is none.
 export async function fetchActiveOrder(userId) {
-  const res = await fetch(`/api/orders/active?user_id=${encodeURIComponent(userId)}`);
+  const res = await fetch(`${ORDERS_URL}/active?user_id=${encodeURIComponent(userId)}`);
   return res.json();
 }
 
 // One order by id, for status polling.
 // Returns { notFound: true } on 404, null on other failures, else the record.
 export async function fetchOrder(orderId) {
-  const res = await fetch(`/api/orders/${orderId}`);
+  const res = await fetch(`${ORDERS_URL}/${orderId}`);
   if (res.status === 404) return { notFound: true };
   if (!res.ok) return null;
   return res.json();
@@ -39,7 +43,7 @@ export async function fetchOrder(orderId) {
 // Place an order. Throws an Error with the server's reason on failure
 // (item sold out, invalid coupon, outside the delivery zone, ...).
 export async function createOrder({ order, items, payment }) {
-  const res = await fetch("/api/orders", {
+  const res = await fetch(ORDERS_URL, {
     method: "POST",
     headers: { "Content-Type": "application/json", ...authHeaders() },
     body: JSON.stringify({ order, items, payment }),
@@ -55,10 +59,10 @@ export async function createOrder({ order, items, payment }) {
 // Returns { success, message? } and never throws.
 export async function cancelOrderRequest(orderId) {
   try {
-    const res = await fetch(`/api/orders/${orderId}`, {
+    const res = await fetch(`${ORDERS_URL}/${orderId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json", ...authHeaders() },
-      body: JSON.stringify({ status: "Cancelled" }),
+      body: JSON.stringify({ status: ORDER_STATUS.CANCELLED }),
     });
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));

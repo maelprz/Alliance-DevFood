@@ -13,6 +13,7 @@ import {
 // services/orderService.js; local state mirrors the server response.
 export function OrderProvider({ children }) {
   const { user } = useApp();
+  const userId = user?.id;
 
   const [activeOrder, setActiveOrder] = useState(null);
   const [orderItems, setOrderItems] = useState([]);
@@ -20,30 +21,42 @@ export function OrderProvider({ children }) {
   const [orders, setOrders] = useState([]);
   // True while the active order is being fetched from the server. Lets TrackOrder
   // distinguish "still loading" from "no order exists" so it doesn't flash empty state.
-  const [loadingActive, setLoadingActive] = useState(true);
+  const [loadingActive, setLoadingActive] = useState(Boolean(userId));
+  // Which user the order state above belongs to.
+  const [stateUserId, setStateUserId] = useState(userId);
+
+  // When the user changes (login, logout, switching accounts), adjust the
+  // order state right away, during render — React's recommended way to react
+  // to a changed value, instead of calling setState inside an effect.
+  //   logout -> drop the previous user's order
+  //   login  -> mark the order as loading; the effect below fetches it
+  if (stateUserId !== userId) {
+    setStateUserId(userId);
+    if (userId) {
+      setLoadingActive(true);
+    } else {
+      setActiveOrder(null);
+      setOrderItems([]);
+      setActivePayment(null);
+      setLoadingActive(false);
+    }
+  }
 
   // Refresh the admin-facing "all orders" list from the server.
-  const refreshAllOrders = useCallback(async () => {
-    const all = await fetchAllOrders();
-    // null = request failed — keep stale local copy.
-    if (all) setOrders(all);
-  }, []);
+  // Returns the promise so callers can wait; state is only set in the callback.
+  const refreshAllOrders = useCallback(
+    () =>
+      fetchAllOrders().then((all) => {
+        // null = request failed — keep stale local copy.
+        if (all) setOrders(all);
+      }),
+    [],
+  );
 
-  // Reset the active-order slice. Extracted into a callback so the linter
-  // doesn't flag the synchronous setStates inside the hydrate effect.
-  const resetActiveOrder = useCallback(() => {
-    setActiveOrder(null);
-    setOrderItems([]);
-    setActivePayment(null);
-    setLoadingActive(false);
-  }, []);
-
-  // Load the active order for a given user from the server. Wrapped in a
-  // callback so the hydrate effect contains zero direct setState calls —
-  // every state update happens inside this helper or a promise callback,
-  // which the linter accepts as canonical "sync external system → React".
+  // Load the active order for a given user from the server. Every state
+  // update happens in the promise callbacks (the loading flag is already set
+  // during render above), so the effect itself never calls setState.
   const hydrateActiveOrder = useCallback((userId) => {
-    setLoadingActive(true);
     fetchActiveOrder(userId)
       .then((record) => {
         if (!record) {
@@ -61,17 +74,40 @@ export function OrderProvider({ children }) {
       .finally(() => setLoadingActive(false));
   }, []);
 
-  // Hydrate whenever the logged-in user changes. The React Compiler dev-mode
-  // warning about "setState in effect" is informational — this is the documented
-  // pattern for syncing external auth state into React. Build is clean.
+  // Load the logged-in user's order in progress from the server whenever the
+  // user changes (logout is handled above, during render).
   useEffect(() => {
-    if (!user?.id) {
-      resetActiveOrder();
-    } else {
-      hydrateActiveOrder(user.id);
-    }
+    if (userId) hydrateActiveOrder(userId);
     refreshAllOrders();
-  }, [user?.id, refreshAllOrders, resetActiveOrder, hydrateActiveOrder]);
+  }, [userId, refreshAllOrders, hydrateActiveOrder]);
+
+  // Quietly re-read the account's order in progress (no loading skeleton).
+  // Used when a tab comes back into view and right before placing an order,
+  // so a tab opened earlier learns about an order placed in another tab.
+  // Only adopts an order the server reports; returns it (or null).
+  const refreshActiveOrder = useCallback(async () => {
+    if (!userId) return null;
+    try {
+      const record = await fetchActiveOrder(userId);
+      if (!record) return null;
+      const { order, items, payment } = splitOrderRecord(record);
+      setActiveOrder(order);
+      setOrderItems(items);
+      setActivePayment(payment);
+      return order;
+    } catch {
+      return null; // Network failure — the server check on placing still applies.
+    }
+  }, [userId]);
+
+  // Another tab may have placed an order while this one was in the background.
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === "visible") refreshActiveOrder();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [refreshActiveOrder]);
 
   // order: { order_id, status, total_amount } — maps to Order ERD entity
   // items: [{ order_item_id, order_id, food_id, quantity }] — maps to OrderItem
@@ -114,6 +150,7 @@ export function OrderProvider({ children }) {
         orders,
         setOrders,
         loadingActive,
+        refreshActiveOrder,
       }}
     >
       {children}

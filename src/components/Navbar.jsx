@@ -4,6 +4,9 @@ import { useState } from "react";
 import { useCart } from "../context/CartContext";
 import { useOrder } from "../context/useOrder";
 import NotificationBell from "./NotificationBell";
+import ActiveOrderCard from "./ActiveOrderCard";
+import { isOrderFinished } from "../constants/orderStatus";
+import { VIEW } from "../constants/views";
 
 export default function Navbar() {
   const { navigate, view } = useNav();
@@ -12,12 +15,12 @@ export default function Navbar() {
   // Order in progress -> show a way back to tracking from any page.
   const { activeOrder } = useOrder();
   const hasLiveOrder =
-    activeOrder && !["Delivered", "Cancelled"].includes(activeOrder.status);
+    activeOrder && !isOrderFinished(activeOrder.status);
   const [hoverLogout, setHoverLogout] = useState(false);
 
   const handleLogout = () => {
     logout();
-    navigate("login");
+    navigate(VIEW.LOGIN);
   };
 
   const cartCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
@@ -38,7 +41,7 @@ export default function Navbar() {
       }}
     >
       <button
-        onClick={() => navigate("menu")}
+        onClick={() => navigate(VIEW.MENU)}
         style={{
           background: "none",
           border: "none",
@@ -60,41 +63,16 @@ export default function Navbar() {
       <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
         {user && (
           <>
-            {hasLiveOrder && view !== "track" && (
-              <button
-                onClick={() => navigate("track")}
-                aria-label={`Track order #${activeOrder.order_id}, ${activeOrder.status}`}
-                style={{
-                  background: "#fff4f0",
-                  border: "1px solid #ffd2c4",
-                  color: "#c2410c",
-                  borderRadius: 999,
-                  padding: "6px 12px",
-                  cursor: "pointer",
-                  fontSize: 13,
-                  fontWeight: 600,
-                  fontFamily: "inherit",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 6,
-                  whiteSpace: "nowrap",
-                }}
-              >
-                <span
-                  aria-hidden="true"
-                  style={{ width: 8, height: 8, borderRadius: "50%", background: "#FF5A36" }}
-                />
-                Track Order · {activeOrder.status}
-              </button>
-            )}
+            {/* Order in progress -> floating card bottom-right (not on Track Order itself). */}
+            {hasLiveOrder && view !== VIEW.TRACK && <ActiveOrderCard />}
             <NotificationBell />
             <button
-              onClick={() => navigate("cart")}
+              onClick={() => navigate(VIEW.CART)}
               style={{
                 position: "relative",
-                background: view === "cart" ? "#f3f4f6" : "none",
+                background: view === VIEW.CART ? "#f3f4f6" : "none",
                 border: "1px solid",
-                borderColor: view === "cart" ? "#e5e7eb" : "transparent",
+                borderColor: view === VIEW.CART ? "#e5e7eb" : "transparent",
                 borderRadius: 8,
                 padding: "6px 12px",
                 cursor: "pointer",
@@ -140,15 +118,15 @@ export default function Navbar() {
             </button>
 
             <button
-              onClick={() => navigate("profile")}
+              onClick={() => navigate(VIEW.PROFILE)}
               aria-label="View profile"
               style={{
                 display: "flex",
                 alignItems: "center",
                 gap: 8,
-                background: view === "profile" ? "#f3f4f6" : "none",
+                background: view === VIEW.PROFILE ? "#f3f4f6" : "none",
                 border: "1px solid",
-                borderColor: view === "profile" ? "#e5e7eb" : "transparent",
+                borderColor: view === VIEW.PROFILE ? "#e5e7eb" : "transparent",
                 borderRadius: 8,
                 padding: "4px 10px 4px 4px",
                 cursor: "pointer",
@@ -199,7 +177,7 @@ export default function Navbar() {
         )}
         {!user && (
           <button
-            onClick={() => navigate("login")}
+            onClick={() => navigate(VIEW.LOGIN)}
             style={{
               padding: "6px 14px",
               background: "#FF5A36",
