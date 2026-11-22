@@ -4,7 +4,8 @@ using System.Security.Claims;
 // All business rules live here: who may order, the delivery zone, one order in
 // progress per account, Cash on Delivery only, server-side prices, coupons and
 // the "Order Confirmed" notification. Database work goes through OrderRepository.
-public class OrderService(OrderRepository orders, IConfiguration config, AdminOrdersService adminOrders)
+public class OrderService(OrderRepository orders, IConfiguration config, AdminOrdersService adminOrders,
+    CouponService coupons, CartRepository cartRepository, CartService cart)
 {
     // Seconds the customer can still cancel. Worked out on the server, so a
     // wrong clock on the customer's computer doesn't matter.
@@ -133,12 +134,6 @@ public class OrderService(OrderRepository orders, IConfiguration config, AdminOr
         if (string.IsNullOrWhiteSpace(req.Order.DeliveryAddress))
             return ServiceResults.BadRequest(new { message = "Delivery address is required." });
 
-        // One order in progress per account: Track Order follows a single order,
-        // so a second one would hide the first. Also covers a second browser tab.
-        var inProgressId = await orders.FindInProgressIdAsync(user.Id);
-        if (inProgressId is not null)
-            return ServiceResults.Conflict(new { message = $"You already have an order in progress (#{inProgressId}). You can order again once it's delivered." });
-
         // Delivery zone: the map pin must be within range of the store.
         // Checked here too, because the browser check alone can be bypassed.
         var (lat, lng) = (req.Order.DeliveryLat, req.Order.DeliveryLng);
@@ -182,16 +177,23 @@ public class OrderService(OrderRepository orders, IConfiguration config, AdminOr
         order.Subtotal = order.Items.Sum(i => i.Price * i.Quantity);
 
         await using var transaction = await orders.BeginTransactionAsync();
+        await cartRepository.LockUserAsync(user.Id);
+        // Recheck under the cart lock so simultaneous checkouts cannot both place an order.
+        var inProgressId = await orders.FindInProgressIdAsync(user.Id);
+        if (inProgressId is not null)
+            return ServiceResults.Conflict(new { message = $"You already have an order in progress (#{inProgressId}). You can order again once it's delivered." });
+
         if (!string.IsNullOrWhiteSpace(req.Order.CouponCode))
         {
-            var result = await orders.EvaluateCouponForOrderAsync(req.Order.CouponCode, order.Subtotal, user.Id);
+            var result = await coupons.EvaluateAsync(req.Order.CouponCode, order.Subtotal, user.Id, lockForOrder: true);
             if (result.Coupon is null) return ServiceResults.BadRequest(new { message = result.Error });
             order.CouponCode = result.Coupon.Code;
             order.DiscountAmount = result.Discount;
         }
         order.TotalAmount = order.Subtotal - order.DiscountAmount + order.DeliveryFee;
 
-        await orders.AddOrderAndClearCartAsync(order);
+        await orders.AddOrderAsync(order);
+        await cart.ClearAsync(user.Id);
 
         // Order Confirmed notification (needs the generated order id, hence the second save).
         await orders.AddNotificationAsync(new Notification

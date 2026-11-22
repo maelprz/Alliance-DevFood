@@ -18,7 +18,7 @@ public record CouponToggle(bool? IsDisabled);
 
 [ApiController]
 [Route("api/coupons")]
-[Authorize(Roles = "admin")]
+[Authorize(Roles = Roles.Admin)]
 public class CouponsController(AdminCouponsService service) : ControllerBase
 {
     [HttpGet]

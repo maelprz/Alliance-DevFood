@@ -1,33 +1,19 @@
-import { useEffect, useState } from "react";
-import { authHeaders } from "../services/authService";
+import { COUPON_STATUS, DISCOUNT_TYPE } from "../constants/coupon";
+import { useCouponManager } from "../hooks/useCouponManager";
 import { describeCoupon } from "../utils/coupon";
 
-const EMPTY_FORM = {
-  code: "",
-  description: "",
-  discountType: "percent",
-  value: "",
-  maxDiscount: "",
-  minOrder: "",
-  startsAt: "",
-  expiresAt: "",
-  usageLimit: "",
-  perUserLimit: "1",
-};
-
 const STATUS_STYLE = {
-  Active: { bg: "#f0fdf4", color: "#166534" },
-  Scheduled: { bg: "#eff6ff", color: "#1d4ed8" },
-  Expired: { bg: "#f3f4f6", color: "#6b7280" },
-  Disabled: { bg: "#fff7ed", color: "#c2410c" },
-  "Used up": { bg: "#fef2f2", color: "#b91c1c" },
+  [COUPON_STATUS.ACTIVE]: { bg: "#f0fdf4", color: "#166534" },
+  [COUPON_STATUS.SCHEDULED]: { bg: "#eff6ff", color: "#1d4ed8" },
+  [COUPON_STATUS.EXPIRED]: { bg: "#f3f4f6", color: "#6b7280" },
+  [COUPON_STATUS.DISABLED]: { bg: "#fff7ed", color: "#c2410c" },
+  [COUPON_STATUS.USED_UP]: { bg: "#fef2f2", color: "#b91c1c" },
 };
 
-// "2026-11-20" -> "Nov 20, 2026" (parsed as a plain date, so no timezone shift)
 function formatDate(value) {
   if (!value) return "";
-  const [y, m, d] = value.split("-").map(Number);
-  return new Date(y, m - 1, d).toLocaleDateString("en-PH", {
+  const [year, month, day] = value.split("-").map(Number);
+  return new Date(year, month - 1, day).toLocaleDateString("en-PH", {
     month: "short",
     day: "numeric",
     year: "numeric",
@@ -35,170 +21,11 @@ function formatDate(value) {
 }
 
 export default function CouponManager() {
-  const [coupons, setCoupons] = useState([]);
-  const [couponPage, setCouponPage] = useState(1);
-  const [totalCouponPages, setTotalCouponPages] = useState(1);
-  const [totalCoupons, setTotalCoupons] = useState(0);
-  const [message, setMessage] = useState(null); // { type: "ok" | "error", text }
-  const [form, setForm] = useState(EMPTY_FORM);
-  const [saving, setSaving] = useState(false);
-  const [couponToDelete, setCouponToDelete] = useState(null);
-  const [deleting, setDeleting] = useState(false);
-
-  const isPercent = form.discountType === "percent";
-
-  function show(type, text) {
-    setMessage({ type, text });
-    setTimeout(() => setMessage(null), 3000);
-  }
-
-  // Bumping this number reloads the list (after adding, enabling or deleting).
-  const [reload, setReload] = useState(0);
-  const refresh = () => setReload((n) => n + 1);
-
-  useEffect(() => {
-    let ignore = false;
-    fetch("/api/coupons/admin-page?page=" + couponPage, { headers: authHeaders("admin") })
-      .then((res) => {
-        if (!res.ok) throw new Error("load failed");
-        return res.json();
-      })
-      .then((data) => {
-        if (ignore === false) {
-          setCoupons(data.items);
-          setTotalCoupons(data.total);
-          setTotalCouponPages(data.totalPages);
-          if (data.page !== couponPage) setCouponPage(data.page);
-        }
-      })
-      .catch(() => {
-        if (ignore) return;
-        setMessage({
-          type: "error",
-          text: "Could not load coupons. Please check your admin login.",
-        });
-        setTimeout(() => setMessage(null), 3000);
-      });
-    return () => {
-      ignore = true;
-    };
-  }, [reload, couponPage]);
-
-  function validate() {
-    if (!form.code.trim()) return "Enter a coupon code.";
-    const value = Number(form.value);
-    if (!form.value || !(value > 0)) {
-      return isPercent
-        ? "Enter a discount percentage."
-        : "Enter a discount amount in pesos.";
-    }
-    if (isPercent && (!Number.isInteger(value) || value > 100)) {
-      return "Discount must be a whole number from 1 to 100.";
-    }
-    if (isPercent && form.maxDiscount !== "" && !(Number(form.maxDiscount) > 0)) {
-      return "Maximum discount must be more than zero.";
-    }
-    if (form.minOrder !== "" && Number(form.minOrder) < 0) {
-      return "Minimum order cannot be negative.";
-    }
-    if (!form.expiresAt) return "Choose the date the coupon expires.";
-    if (form.startsAt && form.startsAt > form.expiresAt) {
-      return "The start date must be on or before the expiry date.";
-    }
-    for (const [label, v] of [
-      ["Usage limit", form.usageLimit],
-      ["Per-customer limit", form.perUserLimit],
-    ]) {
-      if (v !== "" && (!Number.isInteger(Number(v)) || Number(v) < 1)) {
-        return `${label} must be a whole number of at least 1, or left blank.`;
-      }
-    }
-    return null;
-  }
-
-  async function addCoupon() {
-    const problem = validate();
-    if (problem) {
-      show("error", problem);
-      return;
-    }
-    setSaving(true);
-    try {
-      const res = await fetch("/api/coupons", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...authHeaders("admin") },
-        body: JSON.stringify({
-          code: form.code.trim(),
-          description: form.description.trim() || null,
-          discountType: form.discountType,
-          discountPercent: isPercent ? Number(form.value) : null,
-          fixedAmount: isPercent ? null : Number(form.value),
-          maxDiscount:
-            isPercent && form.maxDiscount !== "" ? Number(form.maxDiscount) : null,
-          minOrder: form.minOrder === "" ? 0 : Number(form.minOrder),
-          startsAt: form.startsAt || null,
-          expiresAt: form.expiresAt,
-          usageLimit: form.usageLimit === "" ? null : Number(form.usageLimit),
-          perUserLimit: form.perUserLimit === "" ? null : Number(form.perUserLimit),
-        }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        show("error", data.message || "Failed to add coupon. Please check the details.");
-        return;
-      }
-      setForm(EMPTY_FORM);
-      setCouponPage(1);
-      refresh();
-      show("ok", `Coupon ${data.code} added.`);
-    } catch {
-      show("error", "Server error. Please try again.");
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function toggleCoupon(coupon) {
-    try {
-      const res = await fetch(`/api/coupons/${encodeURIComponent(coupon.code)}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json", ...authHeaders("admin") },
-        body: JSON.stringify({ isDisabled: !coupon.isDisabled }),
-      });
-      if (!res.ok) {
-        show("error", "Failed to update coupon.");
-        return;
-      }
-      refresh();
-    } catch {
-      show("error", "Server error. Please try again.");
-    }
-  }
-
-  async function deleteCoupon() {
-    if (couponToDelete === null) return;
-    setDeleting(true);
-    try {
-      const res = await fetch(`/api/coupons/${encodeURIComponent(couponToDelete)}`, {
-        method: "DELETE",
-        headers: authHeaders("admin"),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (res.ok === false) {
-        setCouponToDelete(null);
-        show("error", data.message || "Failed to delete coupon. Please try again.");
-        return;
-      }
-      setCouponToDelete(null);
-      refresh();
-      show("ok", "Coupon deleted.");
-    } catch {
-      setCouponToDelete(null);
-      show("error", "Server error. Please try again.");
-    } finally {
-      setDeleting(false);
-    }
-  }
+  const {
+    items: coupons, page: couponPage, totalPages: totalCouponPages, total: totalCoupons,
+    loading, listError, refresh, setCouponPage, message, form, setField, isPercent, busy,
+    saving, deleting, couponToDelete, selectCouponToDelete, addCoupon, toggleCoupon, deleteCoupon,
+  } = useCouponManager();
 
   const inputStyle = {
     width: "100%",
@@ -207,7 +34,6 @@ export default function CouponManager() {
     border: "1px solid #d1d5db",
     fontSize: 14,
     fontFamily: "inherit",
-    outline: "none",
     boxSizing: "border-box",
     background: "#fff",
   };
@@ -218,22 +44,23 @@ export default function CouponManager() {
     color: "#6b7280",
     marginBottom: 4,
   };
-  const set = (key) => (e) => setForm({ ...form, [key]: e.target.value });
+  const set = (key) => (e) => setField(key, e.target.value);
   const today = new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Manila" });
 
   return (
-    <div>
+    <div className="coupon-feature">
       <h1 style={{ fontSize: 24, fontWeight: 700, marginBottom: 24, color: "#111827" }}>
         Manage Coupons
       </h1>
 
-      {message && (
+      {message && couponToDelete === null && (
         <div
+          role={message.error ? "alert" : "status"}
           style={{
-            background: message.type === "ok" ? "#f0fdf4" : "#fef2f2",
-            color: message.type === "ok" ? "#166534" : "#dc2626",
+            background: !message.error ? "#f0fdf4" : "#fef2f2",
+            color: !message.error ? "#166534" : "#dc2626",
             padding: "12px 16px",
-            border: `1px solid ${message.type === "ok" ? "#bbf7d0" : "#fecaca"}`,
+            border: `1px solid ${!message.error ? "#bbf7d0" : "#fecaca"}`,
             borderRadius: 8,
             marginBottom: 24,
             fontSize: 14,
@@ -279,8 +106,8 @@ export default function CouponManager() {
               onChange={set("discountType")}
               style={inputStyle}
             >
-              <option value="percent">Percentage (%)</option>
-              <option value="fixed">Fixed amount (₱)</option>
+              <option value={DISCOUNT_TYPE.PERCENT}>Percentage (%)</option>
+              <option value={DISCOUNT_TYPE.FIXED}>Fixed amount (₱)</option>
             </select>
           </div>
 
@@ -384,8 +211,9 @@ export default function CouponManager() {
         </div>
 
         <button
+          type="button"
           onClick={addCoupon}
-          disabled={saving}
+          disabled={busy}
           style={{
             marginTop: 16,
             padding: "10px 18px",
@@ -412,7 +240,7 @@ export default function CouponManager() {
           overflowX: "auto",
         }}
       >
-        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+        <table aria-busy={loading} style={{ width: "100%", borderCollapse: "collapse" }}>
           <thead>
             <tr style={{ background: "#fdf6ef", borderBottom: "1px solid #e5e7eb" }}>
               {["Code", "Discount", "Min Order", "Valid", "Used", "Status", "Action"].map(
@@ -436,18 +264,25 @@ export default function CouponManager() {
           </thead>
 
           <tbody>
-            {coupons.length === 0 && (
+            {(loading || listError || coupons.length === 0) && (
               <tr>
                 <td
                   colSpan={7}
                   style={{ padding: 24, textAlign: "center", color: "#9ca3af", fontSize: 14 }}
                 >
-                  No coupons yet.
+                  {loading && <span role="status">Loading coupons…</span>}
+                  {listError && (
+                    <div className="feature-status" role="alert">
+                      <span>{listError}</span>
+                      <button type="button" className="secondary-button" onClick={refresh}>Try again</button>
+                    </div>
+                  )}
+                  {!loading && !listError && "No coupons yet."}
                 </td>
               </tr>
             )}
-            {coupons.map((coupon) => {
-              const style = STATUS_STYLE[coupon.status] || STATUS_STYLE.Expired;
+            {!loading && !listError && coupons.map((coupon) => {
+              const style = STATUS_STYLE[coupon.status] || STATUS_STYLE[COUPON_STATUS.EXPIRED];
               return (
                 <tr key={coupon.code} style={{ borderBottom: "1px solid #f3f4f6" }}>
                   <td style={{ padding: "16px 20px" }}>
@@ -490,7 +325,9 @@ export default function CouponManager() {
                   </td>
                   <td style={{ padding: "16px 20px", whiteSpace: "nowrap" }}>
                     <button
+                      type="button"
                       onClick={() => toggleCoupon(coupon)}
+                      disabled={busy}
                       style={{
                         padding: "8px 14px",
                         border: "1px solid #d1d5db",
@@ -506,7 +343,9 @@ export default function CouponManager() {
                       {coupon.isDisabled ? "Enable" : "Disable"}
                     </button>
                     <button
-                      onClick={() => setCouponToDelete(coupon.code)}
+                      type="button"
+                      onClick={() => selectCouponToDelete(coupon.code)}
+                      disabled={busy}
                       style={{
                         padding: "8px 14px",
                         border: "1px solid #fecaca",
@@ -526,13 +365,13 @@ export default function CouponManager() {
             })}
           </tbody>
         </table>
-        {totalCoupons > 0 && (
+        {!listError && totalCoupons > 0 && (
           <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 16, padding: 16 }}>
-            <button type="button" onClick={() => setCouponPage(couponPage - 1)} disabled={couponPage === 1}>
+            <button type="button" className="secondary-button" onClick={() => setCouponPage(couponPage - 1)} disabled={loading || busy || couponPage === 1}>
               Previous
             </button>
             <span>Page {couponPage} of {totalCouponPages}</span>
-            <button type="button" onClick={() => setCouponPage(couponPage + 1)} disabled={couponPage >= totalCouponPages}>
+            <button type="button" className="secondary-button" onClick={() => setCouponPage(couponPage + 1)} disabled={loading || busy || couponPage >= totalCouponPages}>
               Next
             </button>
           </div>
@@ -547,8 +386,9 @@ export default function CouponManager() {
           <div style={{ background: "#fff", padding: 24, borderRadius: 14, width: "min(400px, 90vw)" }}>
             <h2 id="delete-coupon-title" style={{ fontSize: 18, margin: "0 0 12px" }}>Delete coupon?</h2>
             <p>Delete <strong>{couponToDelete}</strong>? Customers will no longer be able to use it.</p>
+            {message?.error && <p className="feature-status" role="alert">{message.text}</p>}
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 12, marginTop: 24 }}>
-              <button type="button" onClick={() => setCouponToDelete(null)} disabled={deleting} style={{
+              <button type="button" onClick={() => selectCouponToDelete(null)} disabled={deleting} style={{
                 padding: "10px 18px", border: "1px solid #d1d5db", borderRadius: 8,
                 background: "#fff", color: "#374151", fontWeight: 600, cursor: "pointer",
               }}>Cancel</button>

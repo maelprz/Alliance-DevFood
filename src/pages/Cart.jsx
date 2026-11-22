@@ -1,109 +1,26 @@
-import { useState, useEffect } from "react";
-import { useNav } from "../context/useNav";
 import Navbar from "../components/Navbar";
-import { useCart } from "../context/CartContext";
-import { useApp } from "../context/useApp";
-import { authHeaders } from "../services/authService";
-import {
-  calcDiscount,
-  describeCoupon,
-  readStoredCoupon,
-  storeCoupon,
-  clearStoredCoupon,
-} from "../utils/coupon";
+import CartStatus from "../components/CartStatus";
+import { MAX_CART_QUANTITY } from "../constants/cart";
 import { DELIVERY_FEE } from "../constants/delivery";
+import { VIEW } from "../constants/views";
+import { useCartPage } from "../hooks/useCartPage";
+import { describeCoupon } from "../utils/coupon";
 
-// Cart page — Feature 3
 export default function Cart() {
-  const { navigate } = useNav();
-  const { cartItems, updateQty, removeFromCart } = useCart();
-  const { user } = useApp();
-
-  // Redirect to login if not logged in
-  useEffect(() => {
-    if (!user) {
-      navigate("login", { replace: true });
-    }
-  }, [user, navigate]);
-
-  // Coupon states
-  const [couponCode, setCouponCode] = useState("");
-  const [couponMessage, setCouponMessage] = useState("");
-  const [selectedCoupon, setSelectedCoupon] = useState(() =>
-    readStoredCoupon(user?.id),
-  );
-  const appliedCoupon = selectedCoupon?.userId === user?.id ? selectedCoupon : null;
-
-  // The delivery fee depends on the map pin, so it's set at checkout; the cart
-  // shows the starting fee and adds it to an estimated total.
-
-  const subtotal = Number(
-    cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0).toFixed(2),
-  );
-
-  // A coupon only counts while the cart still meets its minimum order.
-  const couponBelowMin =
-    appliedCoupon && subtotal < (appliedCoupon.minOrder ?? 0);
-  const activeCoupon = appliedCoupon && !couponBelowMin ? appliedCoupon : null;
-
-  // Discount calculation
-  const discountAmount = calcDiscount(activeCoupon, subtotal);
-
-  const total =
-    subtotal - discountAmount + (cartItems.length > 0 ? DELIVERY_FEE.BASE : 0);
-
-  // Coupon validator (the server checks dates, limits and the minimum order)
-  const handleApplyCoupon = async () => {
-    if (!user) return;
-    if (!couponCode.trim()) {
-      setCouponMessage("Enter a coupon code.");
-      return;
-    }
-    try {
-      const res = await fetch("/api/cart/apply-coupon", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...authHeaders() },
-        body: JSON.stringify({ code: couponCode, subtotal }),
-      });
-      const data = await res.json().catch(() => ({}));
-
-      if (res.ok && data.valid) {
-        const coupon = {
-          code: data.code,
-          description: data.description,
-          discountType: data.discountType,
-          discountPercent: data.discountPercent,
-          fixedAmount: data.fixedAmount,
-          maxDiscount: data.maxDiscount,
-          minOrder: data.minOrder,
-          userId: user.id,
-        };
-        storeCoupon(coupon);
-        setSelectedCoupon(coupon);
-        setCouponMessage("");
-        setCouponCode("");
-      } else {
-        setCouponMessage(data.message || "Could not apply this coupon.");
-      }
-    } catch {
-      setCouponMessage("Server error. Please try again.");
-    }
-  };
-
-  const removeCoupon = () => {
-    clearStoredCoupon();
-    setSelectedCoupon(null);
-    setCouponMessage("");
-  };
+  const {
+    navigate, cartItems, cartReady, cartError, retryCart, updateQty, removeFromCart,
+    subtotal, total, couponCode, setCouponCode, couponMessage, appliedCoupon, activeCoupon,
+    couponBelowMin, discountAmount, applyingCoupon, handleApplyCoupon, removeCoupon, goToCheckout, openingCheckout,
+  } = useCartPage();
 
   return (
     <div style={{ minHeight: "100vh", background: "transparent" }}>
       <Navbar />
 
-      <div style={{ maxWidth: 896, margin: "0 auto", padding: "32px 16px" }}>
+      <div className="cart-feature" style={{ maxWidth: 896, margin: "0 auto", padding: "32px 16px" }}>
         {/* Back */}
         <button
-          onClick={() => navigate("menu")}
+          onClick={() => navigate(VIEW.MENU)}
           style={{
             display: "flex",
             alignItems: "center",
@@ -131,7 +48,9 @@ export default function Cart() {
           Your Cart
         </h1>
 
-        {cartItems.length === 0 ? (
+        <CartStatus ready={cartReady} error={cartError} retry={retryCart} />
+
+        {cartReady && (cartItems.length === 0 ? (
           <div
             style={{
               background: "#ffffff",
@@ -146,7 +65,7 @@ export default function Cart() {
             </p>
 
             <button
-              onClick={() => navigate("menu")}
+              onClick={() => navigate(VIEW.MENU)}
               style={{
                 padding: "12px 32px",
                 background: "#FF5A36",
@@ -163,13 +82,7 @@ export default function Cart() {
             </button>
           </div>
         ) : (
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 320px",
-              gap: 24,
-            }}
-          >
+          <div className="cart-layout">
             {/* ITEMS */}
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
               {cartItems.map((item) => (
@@ -220,6 +133,7 @@ export default function Cart() {
                   >
                     <button
                       onClick={() => removeFromCart(item.food_id)}
+                      disabled={openingCheckout}
                       style={{
                         border: "none",
                         background: "none",
@@ -238,6 +152,10 @@ export default function Cart() {
                       style={{ display: "flex", gap: 8, alignItems: "center" }}
                     >
                       <button
+                        type="button"
+                        className="secondary-button cart-quantity-button"
+                        aria-label={`Decrease quantity of ${item.name}`}
+                        disabled={openingCheckout}
                         onClick={() =>
                           updateQty(item.food_id, item.quantity - 1)
                         }
@@ -248,6 +166,10 @@ export default function Cart() {
                       <span>{item.quantity}</span>
 
                       <button
+                        type="button"
+                        className="secondary-button cart-quantity-button"
+                        aria-label={`Increase quantity of ${item.name}`}
+                        disabled={openingCheckout || item.quantity >= MAX_CART_QUANTITY}
                         onClick={() =>
                           updateQty(item.food_id, item.quantity + 1)
                         }
@@ -261,7 +183,7 @@ export default function Cart() {
             </div>
 
             {/* SUMMARY */}
-            <div style={{ position: "sticky", top: 88 }}>
+            <div className="cart-summary">
               <h2>Order Summary</h2>
 
               {cartItems.map((item) => (
@@ -314,6 +236,7 @@ export default function Cart() {
                   <>
                     <input
                       type="text"
+                      aria-label="Coupon code"
                       placeholder="Enter coupon code"
                       value={couponCode}
                       onChange={(e) => setCouponCode(e.target.value)}
@@ -330,6 +253,7 @@ export default function Cart() {
 
                     <button
                       onClick={handleApplyCoupon}
+                      disabled={applyingCoupon || openingCheckout}
                       style={{
                         width: "100%",
                         padding: "10px",
@@ -343,7 +267,7 @@ export default function Cart() {
                         fontFamily: "inherit",
                       }}
                     >
-                      Apply Coupon
+                      {applyingCoupon ? "Applying…" : "Apply Coupon"}
                     </button>
                   </>
                 )}
@@ -399,7 +323,8 @@ export default function Cart() {
               <h3>Total: from ₱{total.toFixed(2)}</h3>
 
               <button
-                onClick={() => navigate("checkout")}
+                onClick={goToCheckout}
+                disabled={openingCheckout || applyingCoupon}
                 style={{
                   width: "100%",
                   padding: "12px",
@@ -412,11 +337,11 @@ export default function Cart() {
                   cursor: "pointer",
                 }}
               >
-                Go to Checkout
+                {openingCheckout ? "Saving cart…" : "Go to Checkout"}
               </button>
             </div>
           </div>
-        )}
+        ))}
       </div>
     </div>
   );

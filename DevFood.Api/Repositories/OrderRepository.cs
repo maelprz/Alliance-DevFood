@@ -47,16 +47,9 @@ public class OrderRepository(AppDbContext db)
     public Task<IDbContextTransaction> BeginTransactionAsync()
         => db.Database.BeginTransactionAsync();
 
-    // Coupon check for an order. CouponService.Evaluate reads the coupon tables and
-    // locks the coupon row until the order commits, so it runs against this context.
-    public Task<CouponResult> EvaluateCouponForOrderAsync(string code, decimal subtotal, int userId)
-        => CouponService.Evaluate(db, code, subtotal, userId, lockForOrder: true);
-
-    // Saves a new order and empties the customer's cart in the same save.
-    public async Task AddOrderAndClearCartAsync(Order order)
+    public async Task AddOrderAsync(Order order)
     {
         db.Orders.Add(order);
-        db.CartItems.RemoveRange(db.CartItems.IgnoreQueryFilters().Where(c => c.UserId == order.UserId));
         await db.SaveChangesAsync();
     }
 
