@@ -3,9 +3,14 @@ public static class CouponRules
 {
     public const string Percent = "percent";
     public const string Fixed = "fixed";
+    const int PhilippineUtcOffsetHours = 8;
+
+    public static string NormalizeCode(string? code) => code?.Trim().ToUpperInvariant() ?? string.Empty;
+
+    public static string NormalizeDiscountType(string type) => type == Fixed ? Fixed : Percent;
 
     // Philippine time (UTC+8): a coupon valid "until Nov 20" lasts until midnight in Cebu.
-    public static DateOnly Today() => DateOnly.FromDateTime(DateTime.UtcNow.AddHours(8));
+    public static DateOnly Today() => DateOnly.FromDateTime(DateTime.UtcNow.AddHours(PhilippineUtcOffsetHours));
 
     // Peso amount taken off the subtotal. Never more than the subtotal itself.
     public static decimal Discount(Coupon c, decimal subtotal)

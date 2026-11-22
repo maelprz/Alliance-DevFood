@@ -1,16 +1,16 @@
 using System.Text.RegularExpressions;
-using Microsoft.EntityFrameworkCore;
-using Npgsql;
 
-public class AdminCouponsService(AdminCouponsRepository repository)
+public class AdminCouponsService(CouponRepository repository)
 {
+    const int PageSize = 5;
+    const string DuplicateCode = "A coupon with this code already exists.";
     static readonly Regex CodePattern = new("^[A-Z0-9_-]{3,20}$");
 
     static object ToDto(Coupon c, int timesUsed) => new
     {
         code = c.Code,
         description = c.Description,
-        discountType = c.DiscountType == CouponRules.Fixed ? CouponRules.Fixed : CouponRules.Percent,
+        discountType = CouponRules.NormalizeDiscountType(c.DiscountType),
         discountPercent = c.DiscountPercent,
         fixedAmount = c.FixedAmount,
         maxDiscount = c.MaxDiscount,
@@ -26,33 +26,30 @@ public class AdminCouponsService(AdminCouponsRepository repository)
 
     public async Task<ServiceResult> GetAll()
     {
-        var used = await repository.GetUsage();
         var coupons = await repository.GetAll();
-        return ServiceResults.Ok(coupons.Select(c => ToDto(c, used.GetValueOrDefault(c.Code))));
+        return ServiceResults.Ok(await WithUsageAsync(coupons));
     }
 
     public async Task<ServiceResult> GetAdminPage(int page = 1)
     {
-        const int pageSize = 5;
         var total = await repository.Count();
-        var totalPages = Math.Max(1, (int)Math.Ceiling(total / (double)pageSize));
+        var totalPages = Math.Max(1, (int)Math.Ceiling(total / (double)PageSize));
         var currentPage = Math.Clamp(page, 1, totalPages);
-        var coupons = await repository.GetPage(currentPage, pageSize);
-        var used = await repository.GetUsage();
-
-        var items = coupons.Select(coupon =>
-        {
-            var timesUsed = 0;
-            if (used.TryGetValue(coupon.Code, out var count)) timesUsed = count;
-            return ToDto(coupon, timesUsed);
-        });
+        var coupons = await repository.GetPage((currentPage - 1) * PageSize, PageSize);
+        var items = await WithUsageAsync(coupons);
 
         return ServiceResults.Ok(new { items, total, page = currentPage, totalPages });
     }
 
+    private async Task<object[]> WithUsageAsync(List<Coupon> coupons)
+    {
+        var used = await repository.GetUsage(coupons.Select(coupon => coupon.Code).ToArray(), OrderStatuses.Cancelled);
+        return coupons.Select(coupon => ToDto(coupon, used.GetValueOrDefault(coupon.Code))).ToArray();
+    }
+
     public async Task<ServiceResult> Create(CouponCreate req)
     {
-        var code = req.Code?.Trim().ToUpperInvariant() ?? "";
+        var code = CouponRules.NormalizeCode(req.Code);
         if (!CodePattern.IsMatch(code))
             return ServiceResults.BadRequest(new { message = "Code must be 3 to 20 letters, numbers, dashes or underscores." });
 
@@ -88,7 +85,7 @@ public class AdminCouponsService(AdminCouponsRepository repository)
         if (req.PerUserLimit is < 1)
             return ServiceResults.BadRequest(new { message = "Per-customer limit must be at least 1." });
         if (await repository.CodeExists(code))
-            return ServiceResults.Conflict(new { message = "A coupon with this code already exists." });
+            return ServiceResults.Conflict(new { message = DuplicateCode });
 
         var coupon = new Coupon
         {
@@ -104,15 +101,8 @@ public class AdminCouponsService(AdminCouponsRepository repository)
             UsageLimit = req.UsageLimit,
             PerUserLimit = req.PerUserLimit
         };
-        try
-        {
-            await repository.Add(coupon);
-        }
-        catch (DbUpdateException ex) when (ex.InnerException is PostgresException
-            { SqlState: PostgresErrorCodes.UniqueViolation })
-        {
-            return ServiceResults.Conflict(new { message = "A coupon with this code already exists." });
-        }
+        if (!await repository.TryAdd(coupon))
+            return ServiceResults.Conflict(new { message = DuplicateCode });
         return ServiceResults.StatusCode(201, ToDto(coupon, 0));
     }
 
@@ -124,18 +114,18 @@ public class AdminCouponsService(AdminCouponsRepository repository)
     public async Task<ServiceResult> SetDisabled(string code, CouponToggle req)
     {
         if (req.IsDisabled is null) return ServiceResults.BadRequest(new { message = "isDisabled is required." });
-        var normalized = code.Trim().ToUpperInvariant();
+        var normalized = CouponRules.NormalizeCode(code);
         var coupon = await repository.Find(normalized);
         if (coupon is null) return ServiceResults.NotFound(new { message = "Coupon not found." });
         coupon.IsDisabled = req.IsDisabled.Value;
         await repository.Save();
-        var used = await repository.CountUsage(coupon.Code);
+        var used = await repository.CountUsage(coupon.Code, OrderStatuses.Cancelled);
         return ServiceResults.Ok(ToDto(coupon, used));
     }
 
     public async Task<ServiceResult> Delete(string code)
     {
-        var normalized = code.Trim().ToUpperInvariant();
+        var normalized = CouponRules.NormalizeCode(code);
         var coupon = await repository.Find(normalized);
         if (coupon is null) return ServiceResults.NotFound(new { message = "Coupon not found." });
         coupon.IsDeleted = true;

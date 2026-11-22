@@ -12,7 +12,10 @@ builder.Services.AddDbContext<AppDbContext>(o =>
 builder.Services.AddScoped<MenuRepository>();
 builder.Services.AddScoped<AdminOrdersRepository>();
 builder.Services.AddScoped<AdminStatisticsRepository>();
-builder.Services.AddScoped<AdminCouponsRepository>();
+builder.Services.AddScoped<CartRepository>();
+builder.Services.AddScoped<CartService>();
+builder.Services.AddScoped<CouponRepository>();
+builder.Services.AddScoped<CouponService>();
 builder.Services.AddScoped<AdminCouponsService>();
 builder.Services.AddScoped<MenuService>();
 builder.Services.AddScoped<AdminOrdersService>();

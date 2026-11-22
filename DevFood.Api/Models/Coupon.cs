@@ -7,7 +7,7 @@ public class Coupon
 
     // "percent" uses DiscountPercent (and the optional MaxDiscount cap).
     // "fixed" takes FixedAmount (pesos) off the order.
-    public string DiscountType { get; set; } = "percent";
+    public string DiscountType { get; set; } = CouponRules.Percent;
     public int DiscountPercent { get; set; }
     public decimal FixedAmount { get; set; }
     public decimal? MaxDiscount { get; set; }

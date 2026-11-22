@@ -3,6 +3,8 @@
 // The server is the source of truth: it checks the coupon again and works out the
 // discount when the order is placed. These helpers only keep the two screens in sync.
 
+import { DISCOUNT_TYPE } from "../constants/coupon";
+
 const STORAGE_KEY = "appliedCoupon";
 
 // Round to centavos, half up. Going through a string avoids float noise like 10.344999.
@@ -14,7 +16,7 @@ function toPesos(n) {
 export function calcDiscount(coupon, subtotal) {
   if (!coupon || !(subtotal > 0)) return 0;
   let raw;
-  if (coupon.discountType === "fixed") {
+  if (coupon.discountType === DISCOUNT_TYPE.FIXED) {
     raw = Number(coupon.fixedAmount) || 0;
   } else {
     raw = (subtotal * (Number(coupon.discountPercent) || 0)) / 100;
@@ -26,7 +28,7 @@ export function calcDiscount(coupon, subtotal) {
 // "20% off (up to ₱100.00)" or "₱50.00 off"
 export function describeCoupon(coupon) {
   if (!coupon) return "";
-  if (coupon.discountType === "fixed") {
+  if (coupon.discountType === DISCOUNT_TYPE.FIXED) {
     return `₱${Number(coupon.fixedAmount).toFixed(2)} off`;
   }
   const cap =
