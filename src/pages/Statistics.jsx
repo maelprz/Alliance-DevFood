@@ -45,6 +45,9 @@ export default function Statistics() {
       <h1 style={{ fontSize: 24, fontWeight: 700, marginBottom: 20 }}>
         Statistics Dashboard
       </h1>
+      <p style={{ color: "#6b7280", marginTop: -12, marginBottom: 20 }}>
+        Current month (Philippine time). Orders are counted by order date; delivered orders and revenue use the delivery date.
+      </p>
 
       <div
         style={{

@@ -9,6 +9,10 @@ builder.Services.AddDbContext<AppDbContext>(o =>
     o.UseNpgsql(builder.Configuration.GetConnectionString("Default"))
      .UseSnakeCaseNamingConvention());
 
+builder.Services.AddScoped<MenuRepository>();
+builder.Services.AddScoped<AdminOrdersRepository>();
+builder.Services.AddScoped<AdminStatisticsRepository>();
+builder.Services.AddScoped<AdminCouponsRepository>();
 builder.Services.AddScoped<AdminCouponsService>();
 builder.Services.AddScoped<MenuService>();
 builder.Services.AddScoped<AdminOrdersService>();

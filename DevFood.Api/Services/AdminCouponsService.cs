@@ -2,7 +2,7 @@ using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 
-public class AdminCouponsService(AppDbContext db)
+public class AdminCouponsService(AdminCouponsRepository repository)
 {
     static readonly Regex CodePattern = new("^[A-Z0-9_-]{3,20}$");
 
@@ -26,38 +26,24 @@ public class AdminCouponsService(AppDbContext db)
 
     public async Task<ServiceResult> GetAll()
     {
-        var used = await db.Orders
-            .Where(o => o.CouponCode != null && o.Status != "Cancelled")
-            .GroupBy(o => o.CouponCode!)
-            .Select(g => new { Code = g.Key, Count = g.Count() })
-            .ToDictionaryAsync(x => x.Code, x => x.Count);
-        var coupons = await db.Coupons.OrderByDescending(c => c.ExpiresAt).ThenBy(c => c.Code).ToListAsync();
+        var used = await repository.GetUsage();
+        var coupons = await repository.GetAll();
         return ServiceResults.Ok(coupons.Select(c => ToDto(c, used.GetValueOrDefault(c.Code))));
     }
 
     public async Task<ServiceResult> GetAdminPage(int page = 1)
     {
         const int pageSize = 5;
-        var total = await db.Coupons.CountAsync();
+        var total = await repository.Count();
         var totalPages = Math.Max(1, (int)Math.Ceiling(total / (double)pageSize));
         var currentPage = Math.Clamp(page, 1, totalPages);
-        var coupons = await db.Coupons
-            .OrderByDescending(coupon => coupon.Id)
-            .Skip((currentPage - 1) * pageSize)
-            .Take(pageSize)
-            .ToListAsync();
-
-        var used = await db.Orders
-            .Where(order => order.CouponCode != null && order.Status != "Cancelled")
-            .GroupBy(order => order.CouponCode)
-            .Select(group => new { Code = group.Key, Count = group.Count() })
-            .ToListAsync();
+        var coupons = await repository.GetPage(currentPage, pageSize);
+        var used = await repository.GetUsage();
 
         var items = coupons.Select(coupon =>
         {
             var timesUsed = 0;
-            var matching = used.FirstOrDefault(entry => entry.Code == coupon.Code);
-            if (matching is not null) timesUsed = matching.Count;
+            if (used.TryGetValue(coupon.Code, out var count)) timesUsed = count;
             return ToDto(coupon, timesUsed);
         });
 
@@ -101,7 +87,7 @@ public class AdminCouponsService(AppDbContext db)
             return ServiceResults.BadRequest(new { message = "Usage limit must be at least 1." });
         if (req.PerUserLimit is < 1)
             return ServiceResults.BadRequest(new { message = "Per-customer limit must be at least 1." });
-        if (await db.Coupons.IgnoreQueryFilters().AnyAsync(c => c.Code == code))
+        if (await repository.CodeExists(code))
             return ServiceResults.Conflict(new { message = "A coupon with this code already exists." });
 
         var coupon = new Coupon
@@ -118,10 +104,9 @@ public class AdminCouponsService(AppDbContext db)
             UsageLimit = req.UsageLimit,
             PerUserLimit = req.PerUserLimit
         };
-        db.Coupons.Add(coupon);
         try
         {
-            await db.SaveChangesAsync();
+            await repository.Add(coupon);
         }
         catch (DbUpdateException ex) when (ex.InnerException is PostgresException
             { SqlState: PostgresErrorCodes.UniqueViolation })
@@ -140,21 +125,21 @@ public class AdminCouponsService(AppDbContext db)
     {
         if (req.IsDisabled is null) return ServiceResults.BadRequest(new { message = "isDisabled is required." });
         var normalized = code.Trim().ToUpperInvariant();
-        var coupon = await db.Coupons.FirstOrDefaultAsync(c => c.Code == normalized);
+        var coupon = await repository.Find(normalized);
         if (coupon is null) return ServiceResults.NotFound(new { message = "Coupon not found." });
         coupon.IsDisabled = req.IsDisabled.Value;
-        await db.SaveChangesAsync();
-        var used = await CouponService.Redemptions(db, coupon.Code).CountAsync();
+        await repository.Save();
+        var used = await repository.CountUsage(coupon.Code);
         return ServiceResults.Ok(ToDto(coupon, used));
     }
 
     public async Task<ServiceResult> Delete(string code)
     {
         var normalized = code.Trim().ToUpperInvariant();
-        var coupon = await db.Coupons.FirstOrDefaultAsync(c => c.Code == normalized);
+        var coupon = await repository.Find(normalized);
         if (coupon is null) return ServiceResults.NotFound(new { message = "Coupon not found." });
         coupon.IsDeleted = true;
-        await db.SaveChangesAsync();
+        await repository.Save();
         return ServiceResults.Ok(new { message = "Coupon deleted." });
     }
 }

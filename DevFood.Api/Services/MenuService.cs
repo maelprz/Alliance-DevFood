@@ -1,11 +1,11 @@
 using Microsoft.EntityFrameworkCore;
 
-public class MenuService(AppDbContext db, IWebHostEnvironment environment)
+public class MenuService(MenuRepository repository, IWebHostEnvironment environment)
 {
     private static readonly string[] Categories =
     [
-        "Burger", "Sandwich", "Chicken", "Pizzas", "Rice Meals",
-        "Snacks", "Spaghetti", "Dessert", "Drinks"
+        MenuCategories.Burger, MenuCategories.Sandwich, MenuCategories.Chicken, MenuCategories.Pizzas, MenuCategories.RiceMeals,
+        MenuCategories.Snacks, MenuCategories.Spaghetti, MenuCategories.Dessert, MenuCategories.Drinks
     ];
 
     private static object ToDto(MenuItem item)
@@ -24,39 +24,18 @@ public class MenuService(AppDbContext db, IWebHostEnvironment environment)
 
     public async Task<ServiceResult> GetAll()
     {
-        var items = await db.MenuItems.OrderBy(item => item.Id).ToListAsync();
+        var items = await repository.GetAll();
         return ServiceResults.Ok(items.Select(ToDto));
     }
 
 
     public async Task<ServiceResult> GetAdmin(string? category, int page = 1)
     {
-        var query = db.MenuItems.AsNoTracking().AsQueryable();
-        if (string.IsNullOrWhiteSpace(category) == false && category != "All")
-        {
-            query = query.Where(item => item.Category == category);
-        }
-
-        const int pageSize = 10;
-        var total = await query.CountAsync();
-        var totalPages = Math.Max(1, (int)Math.Ceiling(total / (double)pageSize));
-        var currentPage = Math.Clamp(page, 1, totalPages);
-        var newestId = await query.MaxAsync(item => (int?)item.Id);
-        var items = await query
-            .OrderByDescending(item => item.Id == newestId)
-            .ThenByDescending(item => item.Category == "Burger")
-            .ThenByDescending(item => item.Category == "Sandwich")
-            .ThenByDescending(item => item.Category == "Chicken")
-            .ThenByDescending(item => item.Category == "Pizzas")
-            .ThenByDescending(item => item.Category == "Rice Meals")
-            .ThenByDescending(item => item.Category == "Snacks")
-            .ThenByDescending(item => item.Category == "Spaghetti")
-            .ThenByDescending(item => item.Category == "Dessert")
-            .ThenByDescending(item => item.Category == "Drinks")
-            .ThenByDescending(item => item.Id)
-            .Skip((currentPage - 1) * pageSize)
-            .Take(pageSize)
-            .ToListAsync();
+        var result = await repository.GetAdmin(category, page);
+        var items = result.Items;
+        var total = result.Total;
+        var currentPage = result.Page;
+        var totalPages = result.TotalPages;
 
         return ServiceResults.Ok(new { items = items.Select(ToDto), total, page = currentPage, totalPages });
     }
@@ -201,15 +180,14 @@ public class MenuService(AppDbContext db, IWebHostEnvironment environment)
             item.IsAvailable = request.Availability.Value;
         }
 
-        db.MenuItems.Add(item);
-        await db.SaveChangesAsync();
+        await repository.Add(item);
         return ServiceResults.StatusCode(201, ToDto(item));
     }
 
 
     public async Task<ServiceResult> Patch(int id, MenuWrite request)
     {
-        var item = await db.MenuItems.FindAsync(id);
+        var item = await repository.Find(id);
         if (item is null)
         {
             return ServiceResults.NotFound(new { message = "Menu item not found." });
@@ -280,14 +258,14 @@ public class MenuService(AppDbContext db, IWebHostEnvironment environment)
             item.IsAvailable = request.Availability.Value;
         }
 
-        await db.SaveChangesAsync();
+        await repository.Save();
         return ServiceResults.Ok(ToDto(item));
     }
 
 
     public async Task<ServiceResult> Delete(int id)
     {
-        var item = await db.MenuItems.FindAsync(id);
+        var item = await repository.Find(id);
         if (item is null)
         {
             return ServiceResults.NotFound(new { message = "Menu item not found." });
@@ -295,7 +273,7 @@ public class MenuService(AppDbContext db, IWebHostEnvironment environment)
 
         item.IsDeleted = true;
         item.IsAvailable = false;
-        await db.SaveChangesAsync();
+        await repository.Save();
         return ServiceResults.Ok(new { message = "Menu item deleted." });
     }
 }

@@ -1,43 +1,15 @@
 using Microsoft.EntityFrameworkCore;
 
-public class AdminOrdersService(AppDbContext db)
+public class AdminOrdersService(AdminOrdersRepository repository)
 {
 
     public async Task<ServiceResult> Get(int page = 1, string? search = null, string status = "All")
     {
-        const int pageSize = 10;
-        var query = db.Orders.AsNoTracking().Where(order => order.IsHiddenFromAdmin == false);
-
-        if (status != "All")
-            query = query.Where(order => order.Status == status);
-
-        if (string.IsNullOrWhiteSpace(search) == false)
-        {
-            var text = search.Trim();
-            var pattern = "%" + text + "%";
-            var orderText = text;
-            if (orderText.StartsWith("ORD-", StringComparison.OrdinalIgnoreCase))
-                orderText = orderText.Substring(4);
-
-            var orderId = -1;
-            if (int.TryParse(orderText, out var parsedId))
-                orderId = parsedId;
-
-            query = query.Where(order =>
-                EF.Functions.ILike(order.User.FullName, pattern) ||
-                order.Id.ToString().Contains(text) ||
-                order.Id == orderId);
-        }
-
-        var total = await query.CountAsync();
-        var totalPages = Math.Max(1, (int)Math.Ceiling(total / (double)pageSize));
-        var currentPage = Math.Clamp(page, 1, totalPages);
-        var orders = await query
-            .Include(order => order.Items)
-            .OrderByDescending(order => order.Id)
-            .Skip((currentPage - 1) * pageSize)
-            .Take(pageSize)
-            .ToListAsync();
+        var result = await repository.GetPage(page, search, status);
+        var orders = result.Items;
+        var total = result.Total;
+        var currentPage = result.Page;
+        var totalPages = result.TotalPages;
 
         return ServiceResults.Ok(new
         {
@@ -54,14 +26,12 @@ public class AdminOrdersService(AppDbContext db)
             return ServiceResults.BadRequest(new { message = "Select at least one order." });
 
         var ids = orderIds.Distinct().ToList();
-        var orders = await db.Orders
-            .Where(order => ids.Contains(order.Id) && order.IsHiddenFromAdmin == false)
-            .ToListAsync();
+        var orders = await repository.FindVisible(ids);
 
         if (orders.Count != ids.Count)
             return ServiceResults.NotFound(new { message = "One or more orders could not be found. Refresh and try again." });
 
-        if (orders.Any(order => order.Status != "Cancelled"))
+        if (orders.Any(order => order.Status != OrderStatuses.Cancelled))
             return ServiceResults.BadRequest(new { message = "Only cancelled orders can be removed from the admin list." });
 
         foreach (var order in orders)
@@ -71,7 +41,7 @@ public class AdminOrdersService(AppDbContext db)
 
         try
         {
-            await db.SaveChangesAsync();
+            await repository.Save();
         }
         catch (DbUpdateConcurrencyException)
         {
@@ -80,11 +50,11 @@ public class AdminOrdersService(AppDbContext db)
 
         return ServiceResults.Ok(new { message = "Selected orders removed from the admin list." });
     }
-    private static readonly string[] Statuses = ["Pending", "Preparing", "Ready", "Delivered", "Cancelled"];
+    private static readonly string[] Statuses = [OrderStatuses.Pending, OrderStatuses.Preparing, OrderStatuses.Ready, OrderStatuses.Delivered, OrderStatuses.Cancelled];
 
     public async Task<ServiceResult> UpdateStatus(int id, OrderPatch req, System.Security.Claims.ClaimsPrincipal user)
     {
-        var order = await db.Orders.Include(o => o.Items).FirstOrDefaultAsync(o => o.Id == id);
+        var order = await repository.Find(id);
         if (order is null) return ServiceResults.NotFound(new { message = "Order not found." });
         var status = Statuses.FirstOrDefault(s => s.Equals(req.Status, StringComparison.OrdinalIgnoreCase));
         if (status is null) return ServiceResults.BadRequest(new { message = "Unknown order status." });
@@ -93,20 +63,20 @@ public class AdminOrdersService(AppDbContext db)
         if (byCustomer)
         {
             if (user.UserId() != order.UserId) return ServiceResults.Forbid();
-            if (status != "Cancelled" || order.Status != "Pending")
+            if (status != OrderStatuses.Cancelled || order.Status != OrderStatuses.Pending)
                 return ServiceResults.BadRequest(new { message = "You can only cancel your own pending order." });
         }
         else
         {
-            if (status == "Cancelled")
+            if (status == OrderStatuses.Cancelled)
                 return ServiceResults.BadRequest(new { message = "Only the customer can cancel an order." });
-            if (order.Status == "Cancelled" || order.Status == "Delivered")
+            if (order.Status == OrderStatuses.Cancelled || order.Status == OrderStatuses.Delivered)
                 return ServiceResults.BadRequest(new { message = "Completed or cancelled orders cannot be changed." });
 
             var nextStatus = "";
-            if (order.Status == "Pending") nextStatus = "Preparing";
-            if (order.Status == "Preparing") nextStatus = "Ready";
-            if (order.Status == "Ready") nextStatus = "Delivered";
+            if (order.Status == OrderStatuses.Pending) nextStatus = OrderStatuses.Preparing;
+            if (order.Status == OrderStatuses.Preparing) nextStatus = OrderStatuses.Ready;
+            if (order.Status == OrderStatuses.Ready) nextStatus = OrderStatuses.Delivered;
 
             if (status != order.Status && status != nextStatus)
                 return ServiceResults.BadRequest(new { message = "Orders must follow Pending, Preparing, Ready, then Delivered." });
@@ -115,27 +85,28 @@ public class AdminOrdersService(AppDbContext db)
         if (status != order.Status)
         {
             order.Status = status;
-            if (status == "Delivered")
+            if (status == OrderStatuses.Delivered)
             {
                 order.DeliveredAt = DateTime.UtcNow;
             }
             if (order.Payment is { } payment)
             {
-                if (status == "Delivered") payment.Status = "Paid";
-                else if (status == "Cancelled") payment.Status = "Voided";
+                if (status == OrderStatuses.Delivered) payment.Status = PaymentStatuses.Paid;
+                else if (status == OrderStatuses.Cancelled) payment.Status = PaymentStatuses.Voided;
             }
+            Notification? notification = null;
             if (byCustomer == false)
-                db.Notifications.Add(new Notification
+                notification = new Notification
                 {
                     UserId = order.UserId,
-                    Type = "order_status",
+                    Type = NotificationTypes.OrderStatus,
                     Title = "Order Update",
                     Message = $"Your order #{order.Id} is now {status}.",
-                    Audience = "user"
-                });
+                    Audience = NotificationAudiences.User
+                };
             try
             {
-                await db.SaveChangesAsync();
+                await repository.SaveStatus(notification);
             }
             catch (DbUpdateConcurrencyException)
             {

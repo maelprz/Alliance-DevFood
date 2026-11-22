@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 
-public class AdminStatisticsService(AppDbContext db)
+public class AdminStatisticsService(AdminStatisticsRepository repository)
 {
     private static DateTime RevenueDate(Order order)
     {
@@ -14,13 +14,10 @@ public class AdminStatisticsService(AppDbContext db)
 
     public async Task<ServiceResult> Get()
     {
-        var orders = await db.Orders
-            .Include(order => order.Items)
-            .AsNoTracking()
-            .ToListAsync();
+        var orders = await repository.GetOrders();
 
         var paidOrders = orders
-            .Where(order => order.Status == "Delivered" && order.Payment != null && order.Payment.Status == "Paid")
+            .Where(order => order.Status == OrderStatuses.Delivered && order.Payment != null && order.Payment.Status == PaymentStatuses.Paid)
             .ToList();
 
         var revenueByDate = paidOrders
@@ -28,6 +25,18 @@ public class AdminStatisticsService(AppDbContext db)
             .ToDictionary(group => group.Key, group => group.Sum(order => order.TotalAmount));
 
         var today = DateTime.UtcNow.AddHours(8).Date;
+        var monthStart = new DateTime(today.Year, today.Month, 1);
+        var nextMonth = monthStart.AddMonths(1);
+        var monthlyOrders = orders
+            .Where(order => order.CreatedAt.AddHours(8) >= monthStart && order.CreatedAt.AddHours(8) < nextMonth)
+            .ToList();
+        var monthlyDeliveredOrders = orders
+            .Where(order => order.Status == OrderStatuses.Delivered && RevenueDate(order) >= monthStart && RevenueDate(order) < nextMonth)
+            .ToList();
+        var monthlyPaidOrders = monthlyDeliveredOrders
+            .Where(order => order.Payment != null && order.Payment.Status == PaymentStatuses.Paid)
+            .ToList();
+
         var revenueData = new List<object>();
         for (var daysAgo = 6; daysAgo >= 0; daysAgo = daysAgo - 1)
         {
@@ -64,10 +73,10 @@ public class AdminStatisticsService(AppDbContext db)
 
         return ServiceResults.Ok(new
         {
-            totalOrders = orders.Count,
-            totalRevenue = paidOrders.Sum(order => order.TotalAmount),
-            deliveredOrders = orders.Count(order => order.Status == "Delivered"),
-            pendingOrders = orders.Count(order => order.Status == "Pending"),
+            totalOrders = monthlyOrders.Count,
+            totalRevenue = monthlyPaidOrders.Sum(order => order.TotalAmount),
+            deliveredOrders = monthlyDeliveredOrders.Count,
+            pendingOrders = monthlyOrders.Count(order => order.Status == OrderStatuses.Pending),
             revenueData,
             foodData
         });
