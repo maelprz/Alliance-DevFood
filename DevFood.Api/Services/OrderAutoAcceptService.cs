@@ -15,7 +15,11 @@ public class OrderAutoAcceptService(IServiceScopeFactory scopes, ILogger<OrderAu
                 var accepted = await orderService.AutoAcceptExpiredAsync();
                 if (accepted > 0) log.LogInformation("Auto-accepted {Count} order(s)", accepted);
             }
-            catch (Exception e) when (e is not OperationCanceledException)
+            // Any failure (including a database timeout, which .NET reports as a
+            // TaskCanceledException) just skips this run. Only an app shutdown
+            // (stoppingToken) may end the loop — otherwise the job would stop
+            // silently while the rest of the API keeps running.
+            catch (Exception e) when (!stoppingToken.IsCancellationRequested)
             {
                 log.LogWarning(e, "Auto-accept run failed; trying again next run");
             }
