@@ -7,7 +7,7 @@ public class AdminOrdersRepository(AppDbContext db)
     public async Task<AdminOrderPage> GetPage(int page, string? search, string status)
     {
         const int pageSize = 10;
-        var query = db.Orders.AsNoTracking().Where(order => order.IsHiddenFromAdmin == false);
+        var query = db.Orders.AsNoTracking().Where(order => order.IsDeleted == false && order.IsHiddenFromAdmin == false);
 
         if (status != "All")
             query = query.Where(order => order.Status == status);
@@ -45,7 +45,7 @@ public class AdminOrdersRepository(AppDbContext db)
 
     public Task<List<Order>> FindVisible(List<int> ids)
     {
-        return db.Orders.Where(order => ids.Contains(order.Id) && order.IsHiddenFromAdmin == false).ToListAsync();
+        return db.Orders.Where(order => ids.Contains(order.Id) && order.IsDeleted == false && order.IsHiddenFromAdmin == false).ToListAsync();
     }
 
     public Task<Order?> Find(int id)

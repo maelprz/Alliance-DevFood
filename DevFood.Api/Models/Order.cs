@@ -5,6 +5,7 @@ public class Order
     public User User { get; set; } = null!;
     public string CustomerName { get; set; } = "";
     public string Status { get; set; } = "Pending";
+    public bool IsDeleted { get; set; }
     public bool IsHiddenFromAdmin { get; set; }
     public decimal Subtotal { get; set; }
     public decimal DeliveryFee { get; set; }

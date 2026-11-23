@@ -302,6 +302,10 @@ namespace DevFood.Api.Migrations
                         .HasColumnType("numeric(10,2)")
                         .HasColumnName("discount_amount");
 
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_deleted");
+
                     b.Property<bool>("IsHiddenFromAdmin")
                         .HasColumnType("boolean")
                         .HasColumnName("is_hidden_from_admin");

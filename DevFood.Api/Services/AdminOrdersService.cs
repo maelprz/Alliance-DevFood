@@ -36,6 +36,7 @@ public class AdminOrdersService(AdminOrdersRepository repository)
 
         foreach (var order in orders)
         {
+            order.IsDeleted = true;
             order.IsHiddenFromAdmin = true;
         }
 
