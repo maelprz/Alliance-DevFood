@@ -5,23 +5,21 @@ import FormAlert from "../components/FormAlert";
 import { resetPassword } from "../services/authService";
 import { validatePassword } from "../utils/validation";
 import { authInputStyle, authButtonStyle, authLinkStyle } from "../constants/authStyles";
+import { RESET_TOKEN_PARAM } from "../constants/auth";
 
 
 function tokenFromUrl() {
   try {
-    return new URLSearchParams(window.location.search).get("reset_token") || "";
+    return new URLSearchParams(window.location.search).get(RESET_TOKEN_PARAM) || "";
   } catch {
     return "";
   }
 }
 
 
+// Removes ?reset_token=… so a refresh or a shared screenshot doesn't expose it.
 function clearTokenFromUrl() {
-  try {
-    window.history.replaceState(null, "", window.location.pathname);
-  } catch {
-    
-  }
+  window.history.replaceState(null, "", window.location.pathname);
 }
 
 
@@ -46,7 +44,7 @@ export default function ResetPassword() {
     const next = {};
     const pwCheck = validatePassword(form.password);
     if (!pwCheck.valid) next.password = pwCheck.message;
-    if (form.password !== form.confirm) next.confirm = "Passwords do not match.";
+    if (form.password !== form.confirm) next.confirm = "Passwords don't match.";
     setErrors(next);
     if (Object.keys(next).length > 0) return;
 
@@ -68,7 +66,7 @@ export default function ResetPassword() {
 
   if (!token) {
     return (
-      <AuthCard title="Reset link missing" subtitle="Open the link from your password reset email, or request a new one.">
+      <AuthCard title="Reset link missing" subtitle="Open the link from your email, or request a new one.">
         <button type="button" onClick={() => navigate("forgot-password")} style={authButtonStyle(false)}>
           Request a new link
         </button>
@@ -82,7 +80,7 @@ export default function ResetPassword() {
   }
 
   return (
-    <AuthCard title="Choose a new password" subtitle="Your new password will replace the old one and sign you out everywhere.">
+    <AuthCard title="Choose a new password" subtitle="You'll be signed out on all devices.">
       {done ? (
         <>
           <FormAlert tone="success" style={{ marginBottom: 16 }}>{done}</FormAlert>

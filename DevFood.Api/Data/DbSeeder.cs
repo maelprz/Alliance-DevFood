@@ -50,8 +50,8 @@ public static class DbSeeder
                 log.LogInformation("Seeded {Count} menu items.", seed.Count);
             }
 
-            var adminEmail = app.Configuration["Admin:Email"]?.Trim().ToLowerInvariant();
-            var adminPassword = app.Configuration["Admin:Password"];
+            var adminEmail = app.Configuration[ConfigKeys.AdminEmail]?.Trim().ToLowerInvariant();
+            var adminPassword = app.Configuration[ConfigKeys.AdminPassword];
             if (!string.IsNullOrEmpty(adminEmail) && !string.IsNullOrEmpty(adminPassword))
             {
                 var admin = await db.Users.FirstOrDefaultAsync(u => u.Email == adminEmail);
@@ -62,13 +62,13 @@ public static class DbSeeder
                         FullName = "Administrator",
                         Email = adminEmail,
                         PasswordHash = BCrypt.Net.BCrypt.HashPassword(adminPassword),
-                        Role = "admin"
+                        Role = Roles.Admin
                     });
                     log.LogInformation("Created admin account {Email}.", adminEmail);
                 }
-                else if (admin.Role != "admin")
+                else if (admin.Role != Roles.Admin)
                 {
-                    admin.Role = "admin";
+                    admin.Role = Roles.Admin;
                     log.LogInformation("Promoted {Email} to admin.", adminEmail);
                 }
                 await db.SaveChangesAsync();

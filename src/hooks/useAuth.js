@@ -12,6 +12,7 @@ import {
   getAttemptsLeft,
 } from "../utils/rateLimiter";
 import { MAX_LOGIN_ATTEMPTS } from "../constants/auth";
+import { useNav } from "../context/useNav";
 
 
 
@@ -25,14 +26,17 @@ const INITIAL_REGISTER_FORM = {
 
 
 export function useAuth({ onLoginSuccess }) {
-  const [isSignUp, setIsSignUp] = useState(false);
+  // The Login / Sign Up tab follows the address: /login or /signup.
+  const { view, navigate } = useNav();
+  const isSignUp = view === "signup";
+  const setIsSignUp = useCallback((signUp) => navigate(signUp ? "signup" : "login"), [navigate]);
   const [loading, setLoading] = useState(false);
   const [loginForm, setLoginForm] = useState(INITIAL_LOGIN_FORM);
   const [registerForm, setRegisterForm] = useState(INITIAL_REGISTER_FORM);
   const [errors, setErrors] = useState({});
   const [serverError, setServerError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
-  const [attemptsLeft, setAttemptsLeft] = useState(MAX_LOGIN_ATTEMPTS);
+  const [attemptsLeft, setAttemptsLeft] = useState(getAttemptsLeft);
 
   
   
@@ -44,7 +48,6 @@ export function useAuth({ onLoginSuccess }) {
     if (user) {
       stableOnSuccess(user);
     }
-    setAttemptsLeft(getAttemptsLeft());
   }, [stableOnSuccess]);
 
   
@@ -60,12 +63,12 @@ export function useAuth({ onLoginSuccess }) {
   function validateLoginForm() {
     const e = {};
     if (!loginForm.email) {
-      e.email = "Email is required.";
+      e.email = "Enter your email.";
     } else if (!isValidEmail(loginForm.email)) {
       e.email = "Enter a valid email address.";
     }
     if (!loginForm.password) {
-      e.password = "Password is required.";
+      e.password = "Enter your password.";
     }
     setErrors(e);
     return Object.keys(e).length === 0;
@@ -75,10 +78,10 @@ export function useAuth({ onLoginSuccess }) {
   function validateRegisterForm() {
     const e = {};
     if (!sanitize(registerForm.name)) {
-      e.name = "Full name is required.";
+      e.name = "Enter your name.";
     }
     if (!registerForm.email) {
-      e.email = "Email is required.";
+      e.email = "Enter your email.";
     } else if (!isValidEmail(registerForm.email)) {
       e.email = "Enter a valid email address.";
     }
@@ -87,9 +90,9 @@ export function useAuth({ onLoginSuccess }) {
       e.password = pwCheck.message;
     }
     if (!registerForm.confirmPassword) {
-      e.confirmPassword = "Please confirm your password.";
+      e.confirmPassword = "Re-enter your password.";
     } else if (registerForm.password !== registerForm.confirmPassword) {
-      e.confirmPassword = "Passwords do not match.";
+      e.confirmPassword = "Passwords don't match.";
     }
     setErrors(e);
     return Object.keys(e).length === 0;
@@ -107,7 +110,7 @@ export function useAuth({ onLoginSuccess }) {
     if (locked) {
       const mins = Math.ceil(remainingMs / 60000);
       setServerError(
-        `Too many failed attempts. Try again in ${mins} minute(s).`,
+        `Too many tries. Try again in ${mins} min.`,
       );
       return;
     }
@@ -133,7 +136,7 @@ export function useAuth({ onLoginSuccess }) {
         setAttemptsLeft(left);
         setServerError(
           nowLocked
-            ? "Account locked after 5 failed attempts. Try again in 15 minutes."
+            ? "Too many tries. Try again in 15 min."
             : `${result.message} ${left} attempt${left !== 1 ? "s" : ""} left.`,
         );
         return;

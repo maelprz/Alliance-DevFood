@@ -3,21 +3,21 @@ using System.Net.Mail;
 
 public class EmailSender(IConfiguration config)
 {
-    public bool IsConfigured => !string.IsNullOrWhiteSpace(config["Smtp:Host"]);
+    public bool IsConfigured => !string.IsNullOrWhiteSpace(config[ConfigKeys.SmtpHost]);
 
     public async Task SendAsync(string to, string subject, string htmlBody)
     {
-        var port = 587;
-        if (int.TryParse(config["Smtp:Port"], out var configuredPort))
+        var port = AuthRules.DefaultSmtpPort;
+        if (int.TryParse(config[ConfigKeys.SmtpPort], out var configuredPort))
         {
             port = configuredPort;
         }
-        using var client = new SmtpClient(config["Smtp:Host"], port)
+        using var client = new SmtpClient(config[ConfigKeys.SmtpHost], port)
         {
             EnableSsl = true,
-            Credentials = new NetworkCredential(config["Smtp:Username"], config["Smtp:Password"])
+            Credentials = new NetworkCredential(config[ConfigKeys.SmtpUsername], config[ConfigKeys.SmtpPassword])
         };
-        var from = config["Smtp:From"] ?? config["Smtp:Username"] ?? "no-reply@devfood.local";
+        var from = config[ConfigKeys.SmtpFrom] ?? config[ConfigKeys.SmtpUsername] ?? AuthRules.DefaultSender;
         using var message = new MailMessage(from, to, subject, htmlBody) { IsBodyHtml = true };
         await client.SendMailAsync(message);
     }

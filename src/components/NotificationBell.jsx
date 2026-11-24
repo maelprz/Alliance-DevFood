@@ -10,8 +10,84 @@ function timeAgo(iso) {
   return `${Math.floor(secs / 86400)}d ago`;
 }
 
+function SectionLabel({ children }) {
+  return (
+    <div style={{ padding: "10px 16px 6px", fontSize: 13, fontWeight: 600, color: "#101828" }}>
+      {children}
+    </div>
+  );
+}
+
+function NotificationRow({ n, onClick }) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        width: "100%",
+        textAlign: "left",
+        display: "flex",
+        gap: 12,
+        alignItems: "flex-start",
+        padding: "12px 16px",
+        border: "none",
+        borderTop: "1px solid #f2f4f7",
+        background: n.isRead ? "#fff" : "#fffaf8",
+        cursor: "pointer",
+        fontFamily: "inherit",
+      }}
+    >
+      <NotificationIcon type={n.type} />
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
+          <span style={{ fontSize: 13, fontWeight: n.isRead ? 500 : 600, color: "#101828" }}>
+            {n.title}
+          </span>
+          <span style={{ fontSize: 11, color: "#98a2b3", whiteSpace: "nowrap" }}>
+            {timeAgo(n.createdAt)}
+          </span>
+        </div>
+        <div style={{ fontSize: 13, color: "#475467", lineHeight: 1.4, marginTop: 2 }}>
+          {n.message}
+        </div>
+        {n.couponCode && (
+          <span
+            style={{
+              marginTop: 8,
+              display: "inline-block",
+              padding: "3px 8px",
+              background: "#f2f4f7",
+              borderRadius: 6,
+              fontSize: 12,
+              fontWeight: 600,
+              color: "#344054",
+              letterSpacing: "0.04em",
+            }}
+          >
+            {n.couponCode}
+          </span>
+        )}
+      </div>
+      {!n.isRead && (
+        <span
+          aria-label="Unread"
+          style={{ width: 8, height: 8, borderRadius: "50%", background: "#FF5A36", marginTop: 6, flexShrink: 0 }}
+        />
+      )}
+    </button>
+  );
+}
+
 export default function NotificationBell() {
-  const { notifications, unreadCount, markRead, markAllRead } = useNotifications();
+  const {
+    notifications,
+    unreadCount,
+    markRead,
+    markAllRead,
+    olderNotifications,
+    hasMoreOlder,
+    loadingOlder,
+    loadOlder,
+  } = useNotifications();
   const [open, setOpen] = useState(false);
   const wrapperRef = useRef(null);
 
@@ -135,72 +211,52 @@ export default function NotificationBell() {
           </div>
 
           <div style={{ overflowY: "auto", flex: 1 }}>
-            {notifications.length === 0 ? (
-              <div style={{ padding: "28px 16px 32px", textAlign: "center" }}>
+            {notifications.length === 0 && olderNotifications.length === 0 ? (
+              <div style={{ padding: "28px 16px 24px", textAlign: "center" }}>
                 <p style={{ margin: 0, fontSize: 14, color: "#344054" }}>You're all caught up</p>
                 <p style={{ margin: "4px 0 0", fontSize: 12, color: "#98a2b3" }}>
-                  Order updates will show up here.
+                  Nothing new this week.
                 </p>
               </div>
             ) : (
-              notifications.map((n) => (
+              <>
+                {notifications.length > 0 && <SectionLabel>Last 7 days</SectionLabel>}
+                {notifications.map((n) => (
+                  <NotificationRow key={n.id} n={n} onClick={() => handleItemClick(n)} />
+                ))}
+                {olderNotifications.length > 0 && <SectionLabel>Older</SectionLabel>}
+                {olderNotifications.map((n) => (
+                  <NotificationRow key={n.id} n={n} onClick={() => handleItemClick(n)} />
+                ))}
+              </>
+            )}
+
+            <div style={{ padding: "10px 16px 14px", borderTop: "1px solid #f2f4f7" }}>
+              {hasMoreOlder ? (
                 <button
-                  key={n.id}
-                  onClick={() => handleItemClick(n)}
+                  onClick={loadOlder}
+                  disabled={loadingOlder}
                   style={{
                     width: "100%",
-                    textAlign: "left",
-                    display: "flex",
-                    gap: 12,
-                    alignItems: "flex-start",
-                    padding: "12px 16px",
+                    padding: "8px 12px",
                     border: "none",
-                    borderTop: "1px solid #f2f4f7",
-                    background: n.isRead ? "#fff" : "#fffaf8",
-                    cursor: "pointer",
+                    borderRadius: 8,
+                    background: "#f2f4f7",
+                    color: "#344054",
+                    fontSize: 13,
+                    fontWeight: 500,
+                    cursor: loadingOlder ? "default" : "pointer",
                     fontFamily: "inherit",
                   }}
                 >
-                  <NotificationIcon type={n.type} />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
-                      <span style={{ fontSize: 13, fontWeight: n.isRead ? 500 : 600, color: "#101828" }}>
-                        {n.title}
-                      </span>
-                      <span style={{ fontSize: 11, color: "#98a2b3", whiteSpace: "nowrap" }}>
-                        {timeAgo(n.createdAt)}
-                      </span>
-                    </div>
-                    <div style={{ fontSize: 13, color: "#475467", lineHeight: 1.4, marginTop: 2 }}>
-                      {n.message}
-                    </div>
-                    {n.couponCode && (
-                      <span
-                        style={{
-                          marginTop: 8,
-                          display: "inline-block",
-                          padding: "3px 8px",
-                          background: "#f2f4f7",
-                          borderRadius: 6,
-                          fontSize: 12,
-                          fontWeight: 600,
-                          color: "#344054",
-                          fontFamily: "monospace",
-                        }}
-                      >
-                        {n.couponCode}
-                      </span>
-                    )}
-                  </div>
-                  {!n.isRead && (
-                    <span
-                      aria-label="Unread"
-                      style={{ width: 8, height: 8, borderRadius: "50%", background: "#FF5A36", marginTop: 6, flexShrink: 0 }}
-                    />
-                  )}
+                  {loadingOlder ? "Loading…" : "See previous notifications"}
                 </button>
-              ))
-            )}
+              ) : (
+                <p style={{ margin: 0, fontSize: 12, color: "#98a2b3", textAlign: "center" }}>
+                  No older notifications.
+                </p>
+              )}
+            </div>
           </div>
         </div>
       )}
