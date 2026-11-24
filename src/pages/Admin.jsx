@@ -8,6 +8,7 @@ import CouponManager from "../components/CouponManager";
 import NotificationManager from "../components/NotificationManager";
 import UserManager from "../components/UserManager";
 import { authHeaders } from "../services/authService";
+import { formatOrderId } from "../constants/orderStatus";
 
 const STATUS_COLORS = {
   Pending: "#ca8a04",
@@ -481,8 +482,6 @@ export default function Admin() {
     marginBottom: 4,
     };
   };
-
-  const formatOrderId = (id) => "ORD-" + String(id).padStart(4, "0");
 
   const currentOrderPage = orderPage;
   const pageOrders = orders;

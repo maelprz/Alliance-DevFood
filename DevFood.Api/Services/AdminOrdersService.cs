@@ -102,7 +102,7 @@ public class AdminOrdersService(AdminOrdersRepository repository)
                     UserId = order.UserId,
                     Type = NotificationTypes.OrderStatus,
                     Title = "Order Update",
-                    Message = $"Your order #{order.Id} is now {status}.",
+                    Message = $"Your order {OrderRules.FormatId(order.Id)} is now {status}.",
                     Audience = NotificationAudiences.User
                 };
             try
