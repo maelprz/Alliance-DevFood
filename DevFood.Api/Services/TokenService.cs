@@ -7,17 +7,15 @@ public class TokenService
 {
     public const string Issuer = "DevFood.Api";
     public const string Audience = "DevFood.Web";
-    static readonly TimeSpan SessionLifetime = TimeSpan.FromHours(8);
-    static readonly TimeSpan RememberMeLifetime = TimeSpan.FromDays(30);
 
     public SymmetricSecurityKey Key { get; }
 
     public TokenService(IConfiguration config, ILogger<TokenService> log)
     {
-        var configured = config["Jwt:Key"];
+        var configured = config[ConfigKeys.JwtKey];
         if (string.IsNullOrWhiteSpace(configured) || configured.Length < 32)
         {
-            log.LogWarning("Jwt:Key is not set (or shorter than 32 characters); using a random key for this run.");
+            log.LogWarning("{Key} is not set (or shorter than 32 characters); using a random key for this run.", ConfigKeys.JwtKey);
             Key = new SymmetricSecurityKey(RandomNumberGenerator.GetBytes(64));
         }
         else
@@ -29,8 +27,8 @@ public class TokenService
     public (string Token, DateTime ExpiresAt) Issue(User user, bool rememberMe)
     {
         var now = DateTime.UtcNow;
-        var lifetime = SessionLifetime;
-        if (rememberMe) lifetime = RememberMeLifetime;
+        var lifetime = AuthRules.SessionLifetime;
+        if (rememberMe) lifetime = AuthRules.RememberMeLifetime;
         var expires = now.Add(lifetime);
         var token = new JsonWebTokenHandler().CreateToken(new SecurityTokenDescriptor
         {
@@ -41,10 +39,10 @@ public class TokenService
             Expires = expires,
             Claims = new Dictionary<string, object>
             {
-                ["sub"] = user.Id.ToString(),
-                ["role"] = user.Role,
-                ["name"] = user.FullName,
-                ["jti"] = Guid.NewGuid().ToString("N")
+                [ClaimNames.Subject] = user.Id.ToString(),
+                [ClaimNames.Role] = user.Role,
+                [ClaimNames.Name] = user.FullName,
+                [ClaimNames.TokenId] = Guid.NewGuid().ToString("N")
             },
             SigningCredentials = new SigningCredentials(Key, SecurityAlgorithms.HmacSha256)
         });

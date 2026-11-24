@@ -37,17 +37,17 @@ export default function ForgotPassword() {
   return (
     <AuthCard
       title="Forgot your password?"
-      subtitle="Enter the email you registered with and we'll send you a link to reset it."
+      subtitle="Enter your email and we'll send you a reset link."
     >
       {result ? (
         <div>
           <FormAlert tone="success" style={{ marginBottom: 16 }}>
-            {result.message} The link expires in 30 minutes.
+            If that email has an account, a reset link is on its way. It expires in 30 minutes.
           </FormAlert>
           
           {result.devResetLink && (
             <p style={{ fontSize: 13, color: "#6b7280", margin: "0 0 16px", wordBreak: "break-all" }}>
-              Development mode (no email server set up):{" "}
+              Dev mode (no email server):{" "}
               <a href={result.devResetLink} style={{ color: "#FF5A36" }}>
                 open the reset link
               </a>

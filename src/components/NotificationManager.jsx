@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { authHeaders } from "../services/authService";
 import { describeCoupon } from "../utils/coupon";
+import NewUserNotifications from "./NewUserNotifications";
 
 const AUDIENCE_LABEL = {
   all: "Everyone",
@@ -147,6 +148,7 @@ export default function NotificationManager() {
       )}
 
       
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", columnGap: 24 }}>
       <div
         style={{
           background: "#fff",
@@ -223,6 +225,8 @@ export default function NotificationManager() {
         >
           Send to all customers
         </button>
+      </div>
+      <NewUserNotifications />
       </div>
 
       

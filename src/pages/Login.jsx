@@ -503,8 +503,7 @@ export default function Login() {
                 <p
                   style={{ fontSize: 12, color: "#6b7280", margin: "0 0 6px" }}
                 >
-                  Must be 8+ characters with uppercase, number, and special
-                  character.
+                  8+ characters, with a capital letter, a number and a symbol.
                 </p>
                 <input
                   type="password"

@@ -443,7 +443,7 @@ export default function Admin() {
 
   const handleLogout = () => {
     setAdminUser(null);
-    navigate("admin-login");
+    navigate("login");
   };
 
   const inputStyle = {

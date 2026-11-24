@@ -58,6 +58,7 @@ export default function Profile() {
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
   const [showNameConfirm, setShowNameConfirm] = useState(false);
+  const [now, setNow] = useState(() => Date.now());
 
   
   useEffect(() => {
@@ -136,9 +137,9 @@ export default function Profile() {
   const nameUnlockAt = profile?.nameChangedAt
     ? new Date(profile.nameChangedAt).getTime() + NAME_COOLDOWN_MS
     : 0;
-  const nameLocked = nameUnlockAt > Date.now();
+  const nameLocked = nameUnlockAt > now;
   const nameDaysLeft = nameLocked
-    ? Math.ceil((nameUnlockAt - Date.now()) / (24 * 60 * 60 * 1000))
+    ? Math.ceil((nameUnlockAt - now) / (24 * 60 * 60 * 1000))
     : 0;
 
   const performSave = async () => {
@@ -160,8 +161,9 @@ export default function Profile() {
     }
     setProfile(result.user);
     setUser(result.user);
+    setNow(Date.now());
     setEditing(false);
-    setSuccess("Profile updated successfully.");
+    setSuccess("Profile saved.");
   };
 
   const handleSaveInfo = (e) => {
@@ -181,7 +183,7 @@ export default function Profile() {
     setError(null);
     setSuccess(null);
     if (pwForm.newPassword !== pwForm.confirm) {
-      setError("New passwords do not match.");
+      setError("Passwords don't match.");
       return;
     }
     setSaving(true);
@@ -195,7 +197,7 @@ export default function Profile() {
       return;
     }
     setPwForm({ currentPassword: "", newPassword: "", confirm: "" });
-    setSuccess("Password changed successfully.");
+    setSuccess("Password changed.");
   };
 
   const totalSpent = orders
@@ -394,7 +396,10 @@ export default function Profile() {
               </h2>
               {!editing && !loadingProfile && (
                 <button
-                  onClick={() => setEditing(true)}
+                  onClick={() => {
+                    setNow(Date.now());
+                    setEditing(true);
+                  }}
                   style={{
                     padding: "8px 18px",
                     background: "#FF5A36",
@@ -426,8 +431,8 @@ export default function Profile() {
                   disabled={nameLocked}
                   hint={
                     nameLocked
-                      ? `Locked — you can change your name again in ${nameDaysLeft} day${nameDaysLeft === 1 ? "" : "s"}.`
-                      : "You can change your name once every 30 days."
+                      ? `You can change your name again in ${nameDaysLeft} day${nameDaysLeft === 1 ? "" : "s"}.`
+                      : "Name can be changed once every 30 days."
                   }
                 />
                 <Field label="Email" type="email" value={form.email} onChange={(v) => setForm({ ...form, email: v })} />
@@ -714,8 +719,7 @@ export default function Profile() {
                 {form.name.trim() || "(empty)"}
               </p>
               <p style={{ fontSize: 13, color: "#6b7280", margin: "0 0 20px", lineHeight: 1.5 }}>
-                Once saved, you won't be able to change your name again for 30 days.
-                Make sure this is the final proper name you want to use.
+                You can't change it again for 30 days.
               </p>
               <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
                 <button
@@ -773,7 +777,7 @@ export default function Profile() {
               Change Password
             </h2>
             <p style={{ fontSize: 13, color: "#6b7280", margin: "0 0 20px" }}>
-              Must be 8+ characters with uppercase, number, and special character.
+              8+ characters, with a capital letter, a number and a symbol.
             </p>
             <form
               onSubmit={handleChangePassword}

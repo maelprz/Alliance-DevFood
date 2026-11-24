@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useApp } from "../context/useApp";
 import { useNav } from "../context/useNav";
-import { authHeaders } from "../services/authService";
+import { listUsers, setUserActive } from "../services/userService";
 import { PERMISSIONS, ROLES } from "../constants/auth";
 import { hasPermission } from "../utils/rbac";
 import FormAlert from "./FormAlert";
@@ -42,23 +42,18 @@ export default function UserManager() {
   
   useEffect(() => {
     let cancelled = false;
-    const params = new URLSearchParams({ page, pageSize: PAGE_SIZE });
-    if (query) params.set("search", query);
-    fetch(`/api/users?${params}`, { headers: authHeaders("admin") })
-      .then(async (res) => {
+    listUsers({ page, pageSize: PAGE_SIZE, search: query })
+      .then((result) => {
         if (cancelled) return;
-        if (res.status === 401) {
+        if (result.expired) {
           setSessionExpired(true);
           return;
         }
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const list = await res.json();
-        if (cancelled) return;
-        setUsers(list);
-        setTotal(Number(res.headers.get("X-Total-Count") || 0));
+        setUsers(result.users);
+        setTotal(result.total);
       })
       .catch(() => {
-        if (!cancelled) setMessage({ text: "Failed to load users. Is the API running?", error: true });
+        if (!cancelled) setMessage({ text: "Couldn't load users. Please try again.", error: true });
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -85,23 +80,19 @@ export default function UserManager() {
     const action = confirming.isActive ? "deactivate" : "reactivate";
     setSaving(true);
     try {
-      const res = await fetch(`/api/users/${confirming.id}/${action}`, {
-        method: "PATCH",
-        headers: authHeaders("admin"),
-      });
-      if (res.status === 401) {
+      const { expired, ok, data } = await setUserActive(confirming.id, !confirming.isActive);
+      if (expired) {
         setSessionExpired(true);
         return;
       }
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setMessage({ text: data.message || `Failed to ${action} user.`, error: true });
+      if (!ok) {
+        setMessage({ text: data.message || `Couldn't ${action} this user.`, error: true });
       } else {
         setUsers((prev) => prev.map((u) => (u.id === data.id ? data : u)));
         setMessage({ text: `${data.name} was ${action}d.`, error: false });
       }
     } catch {
-      setMessage({ text: "Network error. Try again.", error: true });
+      setMessage({ text: "Couldn't reach the server. Please try again.", error: true });
     } finally {
       setSaving(false);
       setConfirming(null);
@@ -263,8 +254,8 @@ export default function UserManager() {
             </h2>
             <p style={{ fontSize: 14, color: "#4b5563", margin: "0 0 20px" }}>
               {confirming.isActive
-                ? "They will be logged out and won't be able to log in until reactivated. Their order history is kept."
-                : "They will be able to log in again."}
+                ? "They'll be logged out and can't log in until you reactivate them. Their orders are kept."
+                : "They'll be able to log in again."}
             </p>
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
               <button

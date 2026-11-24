@@ -1,7 +1,6 @@
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
 public record NotificationCreate(string? Title, string? Message, string? Audience, string? CouponCode);
 
@@ -10,111 +9,69 @@ public record NotificationReadRequest(
 
 [ApiController]
 [Route("api/notifications")]
-public class NotificationsController(AppDbContext db) : ControllerBase
+public class NotificationsController(NotificationService service) : ControllerBase
 {
-    static object ToDto(Notification n, bool? isRead = null) => new
-    {
-        id = n.Id,
-        type = n.Type,
-        title = n.Title,
-        message = n.Message,
-        audience = n.Audience,
-        couponCode = n.CouponCode,
-        createdAt = n.CreatedAt,
-        isRead
-    };
-
     [Authorize(Policy = Permissions.NotificationsReadOwn)]
     [HttpGet]
     public async Task<IActionResult> ForUser([FromQuery(Name = "user_id")] int userId)
     {
-        if (!User.CanAccessUser(userId)) return Forbid();
-        var list = await db.Notifications
-            .Where(n => n.UserId == userId || n.UserId == null)
-            .OrderByDescending(n => n.CreatedAt)
-            .Select(n => new
-            {
-                n,
-                isRead = db.NotificationReads.Any(r => r.NotificationId == n.Id && r.UserId == userId)
-            })
-            .ToListAsync();
-        return Ok(list.Select(x => ToDto(x.n, x.isRead)));
+        var result = await service.ForUser(userId, User.CurrentUser());
+        return StatusCode(result.StatusCode, result.Value);
     }
 
-    [Authorize(Roles = "admin")]
+    [Authorize(Roles = Roles.Admin)]
     [HttpGet("all")]
     public async Task<IActionResult> All()
     {
-        var list = await db.Notifications
-            .Where(n => n.UserId == null)
-            .OrderByDescending(n => n.CreatedAt)
-            .ToListAsync();
-        return Ok(list.Select(n => ToDto(n)));
+        var result = await service.GetBroadcasts();
+        return StatusCode(result.StatusCode, result.Value);
     }
 
-    [Authorize(Roles = "admin")]
+    [Authorize(Roles = Roles.Admin)]
     [HttpPost]
-    public async Task<IActionResult> Create(NotificationCreate req)
+    public async Task<IActionResult> Create(NotificationCreate request)
     {
-        if (string.IsNullOrWhiteSpace(req.Title) || string.IsNullOrWhiteSpace(req.Message))
-            return BadRequest(new { message = "Title and message are both required." });
-
-        var couponCode = string.IsNullOrWhiteSpace(req.CouponCode) ? null : req.CouponCode.Trim().ToUpperInvariant();
-        if (couponCode is not null && !await db.Coupons.AnyAsync(c => c.Code == couponCode))
-            return BadRequest(new { message = "That coupon does not exist." });
-
-        var notification = new Notification
-        {
-            Type = couponCode is null ? "broadcast" : "coupon",
-            Title = req.Title.Trim(),
-            Message = req.Message.Trim(),
-            Audience = "all",
-            CouponCode = couponCode
-        };
-        db.Notifications.Add(notification);
-        await db.SaveChangesAsync();
-        return StatusCode(201, ToDto(notification));
+        var result = await service.CreateBroadcast(request);
+        return StatusCode(result.StatusCode, result.Value);
     }
 
-    [Authorize(Roles = "admin")]
+    [Authorize(Roles = Roles.Admin)]
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Delete(int id)
     {
-        var notification = await db.Notifications.FindAsync(id);
-        if (notification is null) return NotFound(new { message = "Notification not found." });
-        notification.IsDeleted = true;
-        await db.SaveChangesAsync();
-        return Ok(new { message = "Notification deleted." });
+        var result = await service.DeleteBroadcast(id);
+        return StatusCode(result.StatusCode, result.Value);
     }
 
     [Authorize(Policy = Permissions.NotificationsReadOwn)]
     [HttpPatch("{id:int}/read")]
-    public async Task<IActionResult> MarkRead(int id, NotificationReadRequest req)
+    public async Task<IActionResult> MarkRead(int id, NotificationReadRequest request)
     {
-        if (!User.CanAccessUser(req.UserId)) return Forbid();
-        var visible = await db.Notifications
-            .AnyAsync(n => n.Id == id && (n.UserId == req.UserId || n.UserId == null));
-        if (!visible) return NotFound(new { message = "Notification not found." });
-        if (!await db.NotificationReads.AnyAsync(r => r.NotificationId == id && r.UserId == req.UserId))
-        {
-            db.NotificationReads.Add(new NotificationRead { NotificationId = id, UserId = req.UserId });
-            await db.SaveChangesAsync();
-        }
-        return Ok(new { message = "Marked as read." });
+        var result = await service.MarkRead(id, request.UserId, User.CurrentUser());
+        return StatusCode(result.StatusCode, result.Value);
     }
 
     [Authorize(Policy = Permissions.NotificationsReadOwn)]
     [HttpPatch("read-all")]
-    public async Task<IActionResult> MarkAllRead(NotificationReadRequest req)
+    public async Task<IActionResult> MarkAllRead(NotificationReadRequest request)
     {
-        if (!User.CanAccessUser(req.UserId)) return Forbid();
-        var unread = await db.Notifications
-            .Where(n => (n.UserId == req.UserId || n.UserId == null)
-                && !db.NotificationReads.Any(r => r.NotificationId == n.Id && r.UserId == req.UserId))
-            .Select(n => n.Id)
-            .ToListAsync();
-        db.NotificationReads.AddRange(unread.Select(id => new NotificationRead { NotificationId = id, UserId = req.UserId }));
-        await db.SaveChangesAsync();
-        return Ok(new { message = "All notifications marked as read." });
+        var result = await service.MarkAllRead(request.UserId, User.CurrentUser());
+        return StatusCode(result.StatusCode, result.Value);
+    }
+
+    [Authorize(Policy = Permissions.NotificationsReadOwn)]
+    [HttpGet("older")]
+    public async Task<IActionResult> Older([FromQuery(Name = "user_id")] int userId, [FromQuery] int page = 1)
+    {
+        var result = await service.Older(userId, page, User.CurrentUser());
+        return StatusCode(result.StatusCode, result.Value);
+    }
+
+    [Authorize(Roles = Roles.Admin)]
+    [HttpGet("new-users")]
+    public async Task<IActionResult> NewUserMessages()
+    {
+        var result = await service.GetNewUserMessages();
+        return StatusCode(result.StatusCode, result.Value);
     }
 }

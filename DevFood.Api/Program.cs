@@ -23,6 +23,13 @@ builder.Services.AddScoped<AdminStatisticsService>();
 builder.Services.AddScoped<OrderRepository>();
 builder.Services.AddScoped<OrderService>();
 builder.Services.AddHostedService<OrderAutoAcceptService>();
+builder.Services.AddScoped<UserRepository>();
+builder.Services.AddScoped<AuthTokenRepository>();
+builder.Services.AddScoped<NotificationRepository>();
+builder.Services.AddScoped<UserService>();
+builder.Services.AddScoped<AuthService>();
+builder.Services.AddScoped<NotificationService>();
+builder.Services.AddHostedService<NotificationCleanupService>();
 
 builder.Services.AddSingleton<TokenService>();
 builder.Services.AddSingleton<EmailSender>();
@@ -38,8 +45,8 @@ builder.Services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationSc
             ValidIssuer = TokenService.Issuer,
             ValidAudience = TokenService.Audience,
             IssuerSigningKey = tokens.Key,
-            NameClaimType = "sub",
-            RoleClaimType = "role",
+            NameClaimType = ClaimNames.Subject,
+            RoleClaimType = ClaimNames.Role,
             ClockSkew = TimeSpan.FromMinutes(1)
         };
         o.Events = new JwtBearerEvents
@@ -50,44 +57,33 @@ builder.Services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationSc
             // so changing a user's role (or a role's permissions) applies immediately.
             OnTokenValidated = async ctx =>
             {
-                var db = ctx.HttpContext.RequestServices.GetRequiredService<AppDbContext>();
-                var userId = ctx.Principal?.UserId();
-                var jti = ctx.Principal?.FindFirst("jti")?.Value;
-                // One round trip: account state, logout check, and the role's permissions.
-                var user = await db.Users.AsNoTracking()
-                    .Where(u => u.Id == userId)
-                    .Select(u => new
-                    {
-                        u.IsActive,
-                        u.SessionsValidAfter,
-                        u.Role,
-                        Revoked = db.RevokedTokens.Any(r => r.Jti == jti),
-                        Permissions = db.RolePermissions.Where(rp => rp.RoleName == u.Role).Select(rp => rp.PermissionName).ToList()
-                    })
-                    .FirstOrDefaultAsync();
-                if (user is null || !user.IsActive || user.Revoked
-                    || (user.SessionsValidAfter is { } after && ctx.SecurityToken.ValidFrom < after))
+                var auth = ctx.HttpContext.RequestServices.GetRequiredService<AuthService>();
+                var session = await auth.CheckSession(
+                    ctx.Principal?.UserId(),
+                    ctx.Principal?.FindFirst(ClaimNames.TokenId)?.Value,
+                    ctx.SecurityToken.ValidFrom);
+                if (session is null)
                 {
                     ctx.Fail("Session is no longer valid.");
                     return;
                 }
 
                 var identity = (ClaimsIdentity)ctx.Principal!.Identity!;
-                foreach (var stale in identity.FindAll("role").ToList()) identity.RemoveClaim(stale);
-                identity.AddClaim(new Claim("role", user.Role));
-                foreach (var permission in user.Permissions)
+                foreach (var stale in identity.FindAll(ClaimNames.Role).ToList()) identity.RemoveClaim(stale);
+                identity.AddClaim(new Claim(ClaimNames.Role, session.Role));
+                foreach (var permission in session.Permissions)
                     identity.AddClaim(new Claim(Permissions.ClaimType, permission));
             },
             OnChallenge = async ctx =>
             {
                 ctx.HandleResponse();
                 ctx.Response.StatusCode = StatusCodes.Status401Unauthorized;
-                await ctx.Response.WriteAsJsonAsync(new { message = "Your session has expired. Please log in again." });
+                await ctx.Response.WriteAsJsonAsync(new { message = AuthMessages.SessionExpired });
             },
             OnForbidden = async ctx =>
             {
                 ctx.Response.StatusCode = StatusCodes.Status403Forbidden;
-                await ctx.Response.WriteAsJsonAsync(new { message = "You don't have permission to do that." });
+                await ctx.Response.WriteAsJsonAsync(new { message = AuthMessages.NoPermission });
             }
         };
     });

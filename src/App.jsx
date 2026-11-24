@@ -46,6 +46,7 @@ function AppRoutes() {
 
   const routes = {
     login: <Login />,
+    signup: <Login />,
     "forgot-password": <ForgotPassword />,
     "reset-password": <ResetPassword />,
     menu: <BrowseMenu />,

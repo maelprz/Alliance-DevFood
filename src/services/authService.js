@@ -2,7 +2,7 @@
 
 
 
-import { API_BASE, STORAGE_KEYS, SESSION_EXPIRED_EVENT, ROLES } from "../constants/auth";
+import { API_ROUTES, STORAGE_KEYS, SESSION_EXPIRED_EVENT, ROLES } from "../constants/auth";
 
 
 
@@ -14,7 +14,7 @@ async function apiFetch(url, options) {
   } catch {
     
     throw new Error(
-      "Cannot reach the server. Make sure the API is running (start.bat).",
+      "Can't reach the server. Is the API running?",
     );
   }
 
@@ -22,19 +22,25 @@ async function apiFetch(url, options) {
   try {
     data = await res.json();
   } catch {
-    throw new Error(`Unexpected server response (HTTP ${res.status}).`);
+    throw new Error(`Something went wrong (error ${res.status}).`);
   }
 
   return { res, data };
 }
 
 
-function sessionStore() {
+// Browser storage can throw (private mode, blocked site data); then nothing is saved.
+function tryStorage(action) {
   try {
-    if (localStorage.getItem(STORAGE_KEYS.TOKEN)) return localStorage;
+    return action();
   } catch {
-    
+    return null;
   }
+}
+
+
+function sessionStore() {
+  if (tryStorage(() => localStorage.getItem(STORAGE_KEYS.TOKEN))) return localStorage;
   return sessionStorage;
 }
 
@@ -55,7 +61,7 @@ async function authorizedFetch(url, options = {}) {
 
 
 export async function registerUser({ name, email, password }) {
-  const { res, data } = await apiFetch(`${API_BASE}/auth/register`, {
+  const { res, data } = await apiFetch(API_ROUTES.REGISTER, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ name, email, password }),
@@ -64,7 +70,7 @@ export async function registerUser({ name, email, password }) {
   if (!res.ok) {
     return {
       success: false,
-      message: data.message || "Registration failed. Please try again.",
+      message: data.message || "Sign up failed. Please try again.",
     };
   }
 
@@ -73,7 +79,7 @@ export async function registerUser({ name, email, password }) {
 
 
 export async function loginUser({ email, password, rememberMe = false }) {
-  const { res, data } = await apiFetch(`${API_BASE}/auth/login`, {
+  const { res, data } = await apiFetch(API_ROUTES.LOGIN, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email, password, rememberMe }),
@@ -105,17 +111,13 @@ export async function logoutUser() {
   const headers = authHeaders();
   clearSession();
   if (!headers.Authorization) return;
-  try {
-    await fetch(`${API_BASE}/auth/logout`, { method: "POST", headers });
-  } catch {
-    
-  }
+  await fetch(API_ROUTES.LOGOUT, { method: "POST", headers }).catch(() => null);
 }
 
 
 export async function fetchCurrentUser() {
   try {
-    const { res, data } = await authorizedFetch(`${API_BASE}/auth/me`, { method: "GET" });
+    const { res, data } = await authorizedFetch(API_ROUTES.ME, { method: "GET" });
     if (!res.ok) return null;
     sessionStore().setItem(STORAGE_KEYS.USER, JSON.stringify(data));
     return data;
@@ -127,10 +129,10 @@ export async function fetchCurrentUser() {
 
 
 export async function fetchCurrentAdmin() {
-  const headers = authHeaders("admin");
+  const headers = authHeaders(ROLES.ADMIN);
   if (!headers.Authorization) return null;
   try {
-    const res = await fetch(`${API_BASE}/auth/me`, { headers });
+    const res = await fetch(API_ROUTES.ME, { headers });
     return res.ok ? await res.json() : null;
   } catch {
     return undefined;
@@ -139,64 +141,60 @@ export async function fetchCurrentAdmin() {
 
 
 export async function getUserProfile(userId) {
-  const { res, data } = await authorizedFetch(`${API_BASE}/users/${encodeURIComponent(userId)}`, {
+  const { res, data } = await authorizedFetch(`${API_ROUTES.USERS}/${encodeURIComponent(userId)}`, {
     method: "GET",
   });
-  if (!res.ok) return { success: false, message: data.message || "Failed to load profile." };
+  if (!res.ok) return { success: false, message: data.message || "Couldn't load your profile." };
   return { success: true, user: data };
 }
 
 
 export async function updateUserProfile(userId, payload) {
-  const { res, data } = await authorizedFetch(`${API_BASE}/users/${encodeURIComponent(userId)}`, {
+  const { res, data } = await authorizedFetch(`${API_ROUTES.USERS}/${encodeURIComponent(userId)}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
-  if (!res.ok) return { success: false, message: data.message || "Failed to update profile." };
+  if (!res.ok) return { success: false, message: data.message || "Couldn't save your changes." };
 
   
   
   const user = { ...data, permissions: restoreSession().user?.permissions ?? [] };
-  try {
-    sessionStore().setItem(STORAGE_KEYS.USER, JSON.stringify(user));
-  } catch {
-    
-  }
+  tryStorage(() => sessionStore().setItem(STORAGE_KEYS.USER, JSON.stringify(user)));
   return { success: true, user };
 }
 
 
 export async function requestPasswordReset(email) {
-  const { res, data } = await apiFetch(`${API_BASE}/auth/forgot-password`, {
+  const { res, data } = await apiFetch(API_ROUTES.FORGOT_PASSWORD, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email }),
   });
-  if (!res.ok) return { success: false, message: data.message || "Could not send the reset link." };
+  if (!res.ok) return { success: false, message: data.message || "Couldn't send the reset link." };
   return { success: true, message: data.message, devResetLink: data.devResetLink };
 }
 
 
 export async function resetPassword(token, newPassword) {
-  const { res, data } = await apiFetch(`${API_BASE}/auth/reset-password`, {
+  const { res, data } = await apiFetch(API_ROUTES.RESET_PASSWORD, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ token, newPassword }),
   });
   return {
     success: res.ok,
-    message: data.message || (res.ok ? "Password reset." : "Could not reset the password."),
+    message: data.message || (res.ok ? "Password reset." : "Couldn't reset your password."),
   };
 }
 
 
 
 
-export function authHeaders(kind = "customer") {
+export function authHeaders(kind = ROLES.CUSTOMER) {
   try {
     const token =
-      kind === "admin"
+      kind === ROLES.ADMIN
         ? sessionStorage.getItem(STORAGE_KEYS.ADMIN_TOKEN)
         : sessionStore().getItem(STORAGE_KEYS.TOKEN);
     return token ? { Authorization: `Bearer ${token}` } : {};
@@ -221,36 +219,22 @@ export function restoreSession() {
 
 export function clearSession() {
   for (const store of [sessionStorage, localStorage]) {
-    try {
+    tryStorage(() => {
       store.removeItem(STORAGE_KEYS.TOKEN);
       store.removeItem(STORAGE_KEYS.USER);
-    } catch {
-      
-    }
+    });
   }
 }
 
 
 export function saveAdminToken(token) {
-  try {
-    sessionStorage.setItem(STORAGE_KEYS.ADMIN_TOKEN, token);
-  } catch {
-    
-  }
+  tryStorage(() => sessionStorage.setItem(STORAGE_KEYS.ADMIN_TOKEN, token));
 }
 
 
 export async function logoutAdmin() {
-  const headers = authHeaders("admin");
-  try {
-    sessionStorage.removeItem(STORAGE_KEYS.ADMIN_TOKEN);
-  } catch {
-    
-  }
+  const headers = authHeaders(ROLES.ADMIN);
+  tryStorage(() => sessionStorage.removeItem(STORAGE_KEYS.ADMIN_TOKEN));
   if (!headers.Authorization) return;
-  try {
-    await fetch(`${API_BASE}/auth/logout`, { method: "POST", headers });
-  } catch {
-    
-  }
+  await fetch(API_ROUTES.LOGOUT, { method: "POST", headers }).catch(() => null);
 }

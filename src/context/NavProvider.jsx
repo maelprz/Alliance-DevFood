@@ -1,15 +1,15 @@
 import { useState, useEffect, useCallback } from "react";
 import { NavContext } from "./NavContext";
 
-// Valid views: 'login' | 'forgot-password' | 'reset-password' | 'menu' | 'cart' |
-//              'checkout' | 'track' | 'admin-login' | 'admin'
+// Valid views: 'login' | 'signup' | 'forgot-password' | 'reset-password' | 'profile' |
+//              'menu' | 'cart' | 'checkout' | 'track' | 'admin-login' | 'admin'
 // Exports only NavProvider component — React Compiler rule.
 //
 // View is persisted in sessionStorage so a page refresh keeps the user where
 // they were. Cleared automatically when the tab closes (sessionStorage scope).
 //
-// Menu categories and the Cart page have their own addresses. Other views stay
-// on "/" and are preserved in history state.
+// Menu categories, the Cart page and the account pages have their own addresses.
+// Other views stay on "/" and are preserved in history state.
 const VIEW_KEY = "devfood:view";
 const VIEW_PATHS = new Map([
   ["cart", "/cart"],
@@ -20,6 +20,11 @@ const VIEW_PATHS = new Map([
   ["admin-coupons", "/admin/coupons"],
   ["admin-notifications", "/admin/notifications"],
   ["admin-users", "/admin/users"],
+  ["login", "/login"],
+  ["signup", "/signup"],
+  ["forgot-password", "/forgot-password"],
+  ["reset-password", "/reset-password"],
+  ["profile", "/profile"],
 ]);
 const currentPath = () => window.location.pathname.replace(/\/+$/, "") || "/";
 const categorySlug = (category) =>

@@ -1,24 +1,4 @@
-using Microsoft.EntityFrameworkCore;
-
-public static class Roles
-{
-    public const string Customer = "customer";
-    public const string Admin = "admin";
-}
-
-public static class Permissions
-{
-    public const string ClaimType = "perm";
-
-    public const string AdminPanel = "admin.panel";
-    public const string UsersView = "users.view";
-    public const string UsersDeactivate = "users.deactivate";
-    public const string ProfileManageOwn = "profile.manage_own";
-    public const string NotificationsReadOwn = "notifications.read_own";
-
-    public static readonly string[] All = [AdminPanel, UsersView, UsersDeactivate, ProfileManageOwn, NotificationsReadOwn];
-}
-
+// Starting rows for the roles, permissions and role_permissions tables (used by HasData).
 public static class RbacSeed
 {
     public static readonly Role[] Roles =
@@ -48,14 +28,4 @@ public static class RbacSeed
     ];
 
     static RolePermission Grant(string role, string permission) => new() { RoleName = role, PermissionName = permission };
-}
-
-public static class RbacQueries
-{
-    public static Task<List<string>> PermissionsForRoleAsync(this AppDbContext db, string role)
-        => db.RolePermissions.AsNoTracking()
-            .Where(rp => rp.RoleName == role)
-            .OrderBy(rp => rp.PermissionName)
-            .Select(rp => rp.PermissionName)
-            .ToListAsync();
 }
