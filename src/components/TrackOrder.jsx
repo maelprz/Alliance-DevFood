@@ -246,7 +246,7 @@ export default function TrackOrder() {
             }}
           >
             <p style={{ fontSize: 18, fontWeight: 700, color: "#b91c1c", margin: 0 }}>
-              Order {formatOrderId(activeOrder.order_id)} was cancelled
+              {formatOrderId(activeOrder.order_id)} was cancelled
             </p>
             <p style={{ fontSize: 14, color: "#6b7280", margin: "8px 0 20px" }}>
               Sorry about that. You won't be charged ₱
@@ -381,7 +381,7 @@ export default function TrackOrder() {
       <div style={sectionStyle}>
         {/* Full breakdown always shown — no hidden "Details" toggle. */}
         <p style={{ ...smallLabel, marginBottom: 6 }}>
-          Order {formatOrderId(activeOrder.order_id)} ·{" "}
+          Order ID: {formatOrderId(activeOrder.order_id)} ·{" "}
           {PAYMENT_LABEL[activePayment?.payment_method] ?? activePayment?.payment_method ?? "—"}
         </p>
 
@@ -601,7 +601,7 @@ export default function TrackOrder() {
             ← Back to Menu
           </button>
           <span style={{ fontSize: 13, color: "#6b7280" }}>
-            Order{" "}
+            Order ID:{" "}
             <span style={{ fontFamily: "monospace", fontWeight: 600, color: "#111827" }}>
               {formatOrderId(activeOrder.order_id)}
             </span>

@@ -39,7 +39,7 @@ export default function ActiveOrderCard() {
       ? `Free to cancel · ${cancelWindow.label}`
       : activeOrder.status === ORDER_STATUS.READY && trip.arriveAt
         ? text.subtitle
-        : `Order ${formatOrderId(activeOrder.order_id)} · ${activeOrder.status}`;
+        : `${formatOrderId(activeOrder.order_id)} · ${activeOrder.status}`;
 
   return (
     <button
