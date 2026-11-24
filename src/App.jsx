@@ -63,6 +63,11 @@ function AppRoutes() {
     ),
   };
 
+  if (view === "admin-orders" || view === "admin-menu" || view === "admin-statistics"
+    || view === "admin-coupons" || view === "admin-notifications" || view === "admin-users") {
+    return routes.admin;
+  }
+
   return routes[view] ?? <Login />;
 }
 

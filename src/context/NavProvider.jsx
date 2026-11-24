@@ -11,7 +11,16 @@ import { NavContext } from "./NavContext";
 // Menu categories and the Cart page have their own addresses. Other views stay
 // on "/" and are preserved in history state.
 const VIEW_KEY = "devfood:view";
-const VIEW_PATHS = new Map([["cart", "/cart"]]);
+const VIEW_PATHS = new Map([
+  ["cart", "/cart"],
+  ["admin", "/admin"],
+  ["admin-orders", "/admin/orders"],
+  ["admin-menu", "/admin/menu"],
+  ["admin-statistics", "/admin/statistics"],
+  ["admin-coupons", "/admin/coupons"],
+  ["admin-notifications", "/admin/notifications"],
+  ["admin-users", "/admin/users"],
+]);
 const currentPath = () => window.location.pathname.replace(/\/+$/, "") || "/";
 const categorySlug = (category) =>
   category.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");

@@ -20,11 +20,16 @@ const STATUS_COLORS = {
 
 
 export default function Admin() {
-  const { navigate } = useNav();
+  const { view, navigate } = useNav();
   const { setAdminUser, adminUser } = useApp();
   const { menuItems: contextMenuItems, setMenuItems: setContextMenuItems } =
     useMenu();
-  const [activeView, setActiveView] = useState("orders");
+  let activeView = "orders";
+  if (view === "admin-menu") activeView = "menu";
+  if (view === "admin-statistics") activeView = "stats";
+  if (view === "admin-coupons") activeView = "coupons";
+  if (view === "admin-notifications") activeView = "notifications";
+  if (view === "admin-users") activeView = "users";
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
   const [orderPage, setOrderPage] = useState(1);
@@ -541,26 +546,24 @@ export default function Admin() {
         </h2>
 
         <nav style={{ flex: 1 }}>
-          <button
-            style={navBtnStyle(activeView === "orders")} onClick={() => setActiveView("orders")}>
+          <a href="/admin/orders/" style={{ ...navBtnStyle(activeView === "orders"), display: "block", textDecoration: "none", boxSizing: "border-box" }}>
             Active Orders
-          </button>
-          <button
-            style={navBtnStyle(activeView === "menu")} onClick={() => setActiveView("menu")}>
+          </a>
+          <a href="/admin/menu/" style={{ ...navBtnStyle(activeView === "menu"), display: "block", textDecoration: "none", boxSizing: "border-box" }}>
             Menu Editor
-          </button>
-          <button style={navBtnStyle(activeView === "stats")} onClick={() => setActiveView("stats")}>
+          </a>
+          <a href="/admin/statistics/" style={{ ...navBtnStyle(activeView === "stats"), display: "block", textDecoration: "none", boxSizing: "border-box" }}>
             Statistics
-          </button>
-          <button style={navBtnStyle(activeView === "coupons")} onClick={() => setActiveView("coupons")}>
+          </a>
+          <a href="/admin/coupons/" style={{ ...navBtnStyle(activeView === "coupons"), display: "block", textDecoration: "none", boxSizing: "border-box" }}>
             Coupons
-          </button>
-          <button style={navBtnStyle(activeView === "notifications")} onClick={() => setActiveView("notifications")}>
+          </a>
+          <a href="/admin/notifications/" style={{ ...navBtnStyle(activeView === "notifications"), display: "block", textDecoration: "none", boxSizing: "border-box" }}>
             Notifications
-          </button>
-          <button style={navBtnStyle(activeView === "users")} onClick={() => setActiveView("users")}>
+          </a>
+          <a href="/admin/users/" style={{ ...navBtnStyle(activeView === "users"), display: "block", textDecoration: "none", boxSizing: "border-box" }}>
             Users
-          </button>
+          </a>
         </nav>
 
         <div
