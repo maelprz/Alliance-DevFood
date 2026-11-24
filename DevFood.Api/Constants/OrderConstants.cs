@@ -52,4 +52,8 @@ public static class OrderRules
     // Auto-accept only looks at orders placed this recently. Older Pending
     // orders (left over or forgotten) stay Pending for the admin to handle.
     public const int AutoAcceptMaxAgeMinutes = 10;
+
+    // Order number as customers see it, e.g. 101 -> "ORD-0101". Matches the
+    // frontend's formatOrderId and the admin page.
+    public static string FormatId(int id) => $"ORD-{id:D4}";
 }

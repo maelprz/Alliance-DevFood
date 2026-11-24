@@ -53,6 +53,10 @@ export const PAYMENT_STATUS_LABEL = {
   [PAYMENT_STATUS.VOIDED]: "Voided",
 };
 
+// Order number as customers see it, e.g. 101 -> "ORD-0101". Matches the
+// admin page. Display only: the API and URLs keep the plain number.
+export const formatOrderId = (id) => `ORD-${String(id).padStart(4, "0")}`;
+
 // Browser storage key for when this browser first saw an order as Ready.
 export const rideStartKey = (orderId) => `devfood.ride.${orderId}`;
 

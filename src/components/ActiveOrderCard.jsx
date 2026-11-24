@@ -8,7 +8,7 @@ import {
 } from "../hooks/useRiderProgress";
 import { useCancelWindow } from "../hooks/useCancelWindow";
 import OrderStatusIcon from "./OrderStatusIcon";
-import { ORDER_STATUS } from "../constants/orderStatus";
+import { ORDER_STATUS, formatOrderId } from "../constants/orderStatus";
 import { VIEW } from "../constants/views";
 
 // Floating "order in progress" card (Grab-style), bottom-left of every page
@@ -39,7 +39,7 @@ export default function ActiveOrderCard() {
       ? `Free to cancel · ${cancelWindow.label}`
       : activeOrder.status === ORDER_STATUS.READY && trip.arriveAt
         ? text.subtitle
-        : `Order #${activeOrder.order_id} · ${activeOrder.status}`;
+        : `Order ${formatOrderId(activeOrder.order_id)} · ${activeOrder.status}`;
 
   return (
     <button
