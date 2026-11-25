@@ -1,7 +1,8 @@
 import Navbar from "./Navbar";
 import AddressPicker from "./AddressPicker";
+import CartStatus from "./CartStatus";
 import { useCheckout } from "../hooks/useCheckout";
-import { PAYMENT_METHOD } from "../constants/orderStatus";
+import { PAYMENT_METHOD, formatOrderId } from "../constants/orderStatus";
 import { VIEW } from "../constants/views";
 
 // Inline SVG payment-method icons — render identically across OS/browsers.
@@ -38,6 +39,9 @@ function PaymentIcon({ kind, color = "#374151" }) {
 export default function Checkout() {
   const {
     navigate,
+    cartReady,
+    cartError,
+    retryCart,
     lineItems,
     subtotal,
     deliveryFee,
@@ -55,6 +59,20 @@ export default function Checkout() {
     changeLocation,
     placeOrderNow,
   } = useCheckout();
+
+  // Cart still loading (e.g. after a refresh) or failed to load: show the
+  // loading / retry status instead of the empty-cart message, so the customer
+  // isn't sent back to the menu by a cart that simply hasn't arrived yet.
+  if (!cartReady || cartError) {
+    return (
+      <div style={{ minHeight: "100vh", background: "transparent" }}>
+        <Navbar />
+        <div style={{ maxWidth: 600, margin: "80px auto", textAlign: "center", padding: "0 16px" }}>
+          <CartStatus ready={cartReady} error={cartError} retry={retryCart} />
+        </div>
+      </div>
+    );
+  }
 
   // Empty cart guard — block checkout if there is nothing to order
   if (lineItems.length === 0) {
@@ -376,7 +394,7 @@ export default function Checkout() {
                       You already have an order in progress
                     </p>
                     <p style={{ fontSize: 13, color: "#9a3412", margin: 0 }}>
-                      Order #{orderInProgress.order_id} is {orderInProgress.status.toLowerCase()}. You
+                      Your order {formatOrderId(orderInProgress.order_id)} is {orderInProgress.status.toLowerCase()}. You
                       can place a new order once it's delivered. Your cart is saved.
                     </p>
                     <button

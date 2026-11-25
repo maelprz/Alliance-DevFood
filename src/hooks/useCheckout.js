@@ -20,7 +20,10 @@ export function useCheckout() {
   const { placeOrder, activeOrder, refreshActiveOrder } = useOrder();
   const { navigate } = useNav();
   const { user } = useApp();
-  const { cartItems, clearCart } = useCart();
+  // cartReady is false until the cart has loaded from the server (e.g. right
+  // after a refresh). Until then an empty list means "not loaded yet", not
+  // "empty", so Checkout must wait before showing the empty-cart message.
+  const { cartItems, cartReady, cartError, retryCart, clearCart } = useCart();
 
   // Redirect to the menu if not logged in
   useEffect(() => {
@@ -159,6 +162,9 @@ export function useCheckout() {
 
   return {
     navigate,
+    cartReady,
+    cartError,
+    retryCart,
     lineItems,
     subtotal,
     deliveryFee: deliveryFee ?? DELIVERY_FEE.BASE,
