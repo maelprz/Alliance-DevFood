@@ -13,7 +13,7 @@ public class AdminOrdersService(AdminOrdersRepository repository)
 
         return ServiceResults.Ok(new
         {
-            orders = orders.Select(OrdersController.ToDto),
+            orders = orders.Select(OrderService.ToDto),
             total,
             page = currentPage,
             totalPages
@@ -101,7 +101,7 @@ public class AdminOrdersService(AdminOrdersRepository repository)
                 {
                     UserId = order.UserId,
                     Type = NotificationTypes.OrderStatus,
-                    Title = "Order Update",
+                    Title = NotificationTitles.OrderUpdate,
                     Message = $"Your order {OrderRules.FormatId(order.Id)} is now {status}.",
                     Audience = NotificationAudiences.User
                 };
@@ -114,7 +114,7 @@ public class AdminOrdersService(AdminOrdersRepository repository)
                 return ServiceResults.Conflict(new { message = "The order status changed. Refresh and try again." });
             }
         }
-        return ServiceResults.Ok(OrdersController.ToDto(order));
+        return ServiceResults.Ok(OrderService.ToDto(order));
     }
 
 }
