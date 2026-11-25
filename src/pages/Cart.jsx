@@ -82,7 +82,12 @@ export default function Cart() {
             </button>
           </div>
         ) : (
-          <div className="cart-layout">
+          // Layout inline because index.css (where .cart-layout lives) isn't
+          // imported yet: items on the left, Order Summary on the right.
+          <div
+            className="cart-layout"
+            style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 320px", gap: 24, alignItems: "start" }}
+          >
             {/* ITEMS */}
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
               {cartItems.map((item) => (
@@ -183,7 +188,7 @@ export default function Cart() {
             </div>
 
             {/* SUMMARY */}
-            <div className="cart-summary">
+            <div className="cart-summary" style={{ position: "sticky", top: 88 }}>
               <h2>Order Summary</h2>
 
               {cartItems.map((item) => (
