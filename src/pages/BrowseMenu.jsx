@@ -17,6 +17,8 @@ export default function BrowseMenu() {
     "All";
   const [searchTerm, setSearchTerm] = useState("");
   const [addedItems, setAddedItems] = useState(new Set());
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 12;
 
   const categories = categoriesFromItems(menuItems);
 
@@ -84,6 +86,9 @@ export default function BrowseMenu() {
 
     return a.name.localeCompare(b.name);
   });
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const pageItems = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   // FIXED: now actually updates CART CONTEXT
   // Check if user is logged in before adding to cart
@@ -193,7 +198,10 @@ export default function BrowseMenu() {
             type="text"
             placeholder="Search for dishes..."
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={(e) => {
+              setSearchTerm(e.target.value);
+              setCurrentPage(1);
+            }}
             style={{
               width: "100%",
               padding: "12px 16px",
@@ -220,11 +228,12 @@ export default function BrowseMenu() {
           </label>
           <select
             value={selectedCategory}
-            onChange={(e) =>
+            onChange={(e) => {
+              setCurrentPage(1);
               navigate("menu", {
                 category: e.target.value === "All" ? null : e.target.value,
-              })
-            }
+              });
+            }}
             style={{
               padding: "8px 16px",
               borderRadius: 8,
@@ -303,7 +312,7 @@ export default function BrowseMenu() {
           gap: 24,
         }}
       >
-        {filtered.map((item) => {
+        {pageItems.map((item) => {
           const isAdded = addedItems.has(item.food_id);
 
           return (
@@ -370,6 +379,17 @@ export default function BrowseMenu() {
           );
         })}
       </div>
+      {totalPages > 1 && (
+        <nav aria-label="Menu pages" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 16, padding: "0 32px 32px" }}>
+          <button type="button" onClick={() => setCurrentPage((page) => Math.max(1, page - 1))} disabled={currentPage === 1}>
+            Previous
+          </button>
+          <span aria-live="polite">Page {currentPage} of {totalPages}</span>
+          <button type="button" onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))} disabled={currentPage === totalPages}>
+            Next
+          </button>
+        </nav>
+      )}
     </div>
   );
 }
