@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { STORE } from "../constants/delivery";
-import { fetchRoute } from "../utils/geo";
+import { fetchRoute } from "../services/geoService";
 import { ORDER_STATUS, rideStartKey, isOrderFinished } from "../constants/orderStatus";
 
 // Simulated rider for Track Order. DevFood has no real riders, so the trip

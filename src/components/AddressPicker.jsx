@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { STORE, MAX_DELIVERY_KM } from "../constants/delivery";
-import { distanceKm, reverseGeocode, searchAddress } from "../utils/geo";
+import { distanceKm } from "../utils/geo";
+import { reverseGeocode, searchAddress } from "../services/geoService";
 
 // Pins are drawn with inline SVG (divIcon) so no marker image files are needed.
 function pinIcon(color) {

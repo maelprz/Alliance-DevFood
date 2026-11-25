@@ -35,6 +35,14 @@ public static class NotificationTypes
     public const string OrderStatus = "order_status";
 }
 
+// Titles of the order notifications the customer sees.
+public static class NotificationTitles
+{
+    public const string OrderConfirmed = "Order Confirmed";
+    // Same title AdminOrdersService uses when the admin changes a status.
+    public const string OrderUpdate = "Order Update";
+}
+
 public static class NotificationAudiences
 {
     public const string User = "user";

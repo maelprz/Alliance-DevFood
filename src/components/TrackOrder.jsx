@@ -598,7 +598,7 @@ export default function TrackOrder() {
               fontFamily: "inherit",
             }}
           >
-            ← Back to Menu
+            Back to Menu
           </button>
           <span style={{ fontSize: 13, color: "#6b7280" }}>
             Order ID:{" "}

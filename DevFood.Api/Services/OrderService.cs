@@ -112,7 +112,7 @@ public class OrderService(OrderRepository orders, IConfiguration config, AdminOr
             {
                 UserId = order.UserId,
                 Type = NotificationTypes.OrderStatus,
-                Title = "Order Update",
+                Title = NotificationTitles.OrderUpdate,
                 Message = $"Your order {OrderRules.FormatId(order.Id)} is now {OrderStatuses.Preparing}.",
                 Audience = NotificationAudiences.User
             });
@@ -200,7 +200,7 @@ public class OrderService(OrderRepository orders, IConfiguration config, AdminOr
         {
             UserId = user.Id,
             Type = NotificationTypes.OrderConfirmed,
-            Title = "Order Confirmed",
+            Title = NotificationTitles.OrderConfirmed,
             Message = $"Your order {OrderRules.FormatId(order.Id)} has been placed. Total: ₱{order.TotalAmount:0.00}.",
             Audience = NotificationAudiences.User
         });
