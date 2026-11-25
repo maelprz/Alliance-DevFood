@@ -15,7 +15,7 @@ html, body, #root {
   width: 100%;
   min-height: 100vh;
   min-height: 100dvh;
-  overflow-x: hidden;
+  overflow-x: clip;
 }
 
 html {
@@ -50,7 +50,7 @@ h1, h2, h3, h4 {
   letter-spacing: -0.01em;
 }
 
-button {
+button, input, select, textarea {
   font-family: inherit;
 }
 
@@ -105,6 +105,17 @@ button {
   padding: 0;
 }
 
+.cart-quantity-input {
+  width: 52px;
+  min-height: 32px;
+  padding: 4px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  color: #374151;
+  font-size: 16px;
+  text-align: center;
+}
+
 .cart-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 320px;
@@ -112,9 +123,35 @@ button {
   align-items: start;
 }
 
+.cart-item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: center;
+  overflow-wrap: anywhere;
+}
+
+.cart-item-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
 .cart-summary {
   position: sticky;
   top: 88px;
+}
+
+@media (max-width: 480px) {
+  .cart-item {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .cart-item-actions {
+    grid-column: 1 / -1;
+    flex-direction: row;
+    justify-content: space-between;
+  }
 }
 
 @media (max-width: 720px) {

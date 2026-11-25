@@ -10,6 +10,8 @@ const STATUS_STYLE = {
   [COUPON_STATUS.USED_UP]: { bg: "#fef2f2", color: "#b91c1c" },
 };
 
+const COUPON_COLUMNS = ["Code", "Discount", "Min Order", "Valid", "Status", "Action"];
+
 function formatDate(value) {
   if (!value) return "";
   const [year, month, day] = value.split("-").map(Number);
@@ -243,7 +245,7 @@ export default function CouponManager() {
         <table aria-busy={loading} style={{ width: "100%", borderCollapse: "collapse" }}>
           <thead>
             <tr style={{ background: "#fdf6ef", borderBottom: "1px solid #e5e7eb" }}>
-              {["Code", "Discount", "Min Order", "Valid", "Used", "Status", "Action"].map(
+              {COUPON_COLUMNS.map(
                 (head) => (
                   <th
                     key={head}
@@ -267,7 +269,7 @@ export default function CouponManager() {
             {(loading || listError || coupons.length === 0) && (
               <tr>
                 <td
-                  colSpan={7}
+                  colSpan={COUPON_COLUMNS.length}
                   style={{ padding: 24, textAlign: "center", color: "#9ca3af", fontSize: 14 }}
                 >
                   {loading && <span role="status">Loading coupons…</span>}
@@ -298,15 +300,6 @@ export default function CouponManager() {
                   <td style={{ padding: "16px 20px", whiteSpace: "nowrap", fontSize: 13 }}>
                     {coupon.startsAt ? `${formatDate(coupon.startsAt)} - ` : "Until "}
                     {formatDate(coupon.expiresAt)}
-                  </td>
-                  <td style={{ padding: "16px 20px", whiteSpace: "nowrap", fontSize: 13 }}>
-                    {coupon.timesUsed}
-                    {coupon.usageLimit ? ` / ${coupon.usageLimit}` : ""}
-                    {coupon.perUserLimit ? (
-                      <div style={{ fontSize: 12, color: "#6b7280" }}>
-                        {coupon.perUserLimit} per customer
-                      </div>
-                    ) : null}
                   </td>
                   <td style={{ padding: "16px 20px" }}>
                     <span

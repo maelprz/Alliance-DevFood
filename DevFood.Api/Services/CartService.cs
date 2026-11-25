@@ -1,6 +1,6 @@
 public class CartService(CartRepository repository)
 {
-    const int MaxQuantity = 99;
+    const int MaxQuantity = 999;
 
     public async Task<ServiceResult> GetAsync(int? userId)
     {

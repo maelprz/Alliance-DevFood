@@ -1,3 +1,4 @@
+import { useState } from "react";
 import Navbar from "../components/Navbar";
 import CartStatus from "../components/CartStatus";
 import { MAX_CART_QUANTITY } from "../constants/cart";
@@ -5,6 +6,38 @@ import { DELIVERY_FEE } from "../constants/delivery";
 import { VIEW } from "../constants/views";
 import { useCartPage } from "../hooks/useCartPage";
 import { describeCoupon } from "../utils/coupon";
+
+function CartQuantityInput({ name, quantity, disabled, onChange }) {
+  const [draft, setDraft] = useState(null);
+
+  function commitQuantity() {
+    setDraft(null);
+    if (draft == null || draft === "") return;
+
+    const nextQuantity = Math.max(1, Math.min(Number(draft), MAX_CART_QUANTITY));
+    if (nextQuantity !== quantity) onChange(nextQuantity);
+  }
+
+  return (
+    <input
+      type="text"
+      inputMode="numeric"
+      className="cart-quantity-input tabular"
+      aria-label={`Quantity of ${name}`}
+      title={`Enter a whole number from 1 to ${MAX_CART_QUANTITY}`}
+      value={draft ?? String(quantity)}
+      disabled={disabled}
+      onChange={(event) => {
+        const value = event.target.value;
+        if (/^\d*$/.test(value)) setDraft(value);
+      }}
+      onBlur={commitQuantity}
+      onKeyDown={(event) => {
+        if (event.key === "Enter") event.currentTarget.blur();
+      }}
+    />
+  );
+}
 
 export default function Cart() {
   const {
@@ -82,25 +115,18 @@ export default function Cart() {
             </button>
           </div>
         ) : (
-          // Layout inline because index.css (where .cart-layout lives) isn't
-          // imported yet: items on the left, Order Summary on the right.
-          <div
-            className="cart-layout"
-            style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 320px", gap: 24, alignItems: "start" }}
-          >
+          <div className="cart-layout">
             {/* ITEMS */}
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
               {cartItems.map((item) => (
                 <div
                   key={item.food_id}
+                  className="cart-item"
                   style={{
                     background: "#ffffff",
                     borderRadius: 12,
                     border: "1px solid #e5e7eb",
                     padding: 16,
-                    display: "flex",
-                    gap: 16,
-                    alignItems: "center",
                   }}
                 >
                   {/* IMAGE FIXED */}
@@ -129,13 +155,7 @@ export default function Cart() {
                     </p>
                   </div>
 
-                  <div
-                    style={{
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: 10,
-                    }}
-                  >
+                  <div className="cart-item-actions">
                     <button
                       onClick={() => removeFromCart(item.food_id)}
                       disabled={openingCheckout}
@@ -168,7 +188,12 @@ export default function Cart() {
                         −
                       </button>
 
-                      <span>{item.quantity}</span>
+                      <CartQuantityInput
+                        name={item.name}
+                        quantity={item.quantity}
+                        disabled={openingCheckout}
+                        onChange={(quantity) => updateQty(item.food_id, quantity)}
+                      />
 
                       <button
                         type="button"
@@ -188,7 +213,7 @@ export default function Cart() {
             </div>
 
             {/* SUMMARY */}
-            <div className="cart-summary" style={{ position: "sticky", top: 88 }}>
+            <div className="cart-summary">
               <h2>Order Summary</h2>
 
               {cartItems.map((item) => (
