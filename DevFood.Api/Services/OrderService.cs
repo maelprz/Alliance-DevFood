@@ -181,7 +181,7 @@ public class OrderService(OrderRepository orders, IConfiguration config, AdminOr
         // Recheck under the cart lock so simultaneous checkouts cannot both place an order.
         var inProgressId = await orders.FindInProgressIdAsync(user.Id);
         if (inProgressId is not null)
-            return ServiceResults.Conflict(new { message = $"You already have an order in progress (#{inProgressId}). You can order again once it's delivered." });
+            return ServiceResults.Conflict(new { message = $"You already have an order in progress ({OrderRules.FormatId(inProgressId.Value)}). You can order again once it's delivered." });
 
         if (!string.IsNullOrWhiteSpace(req.Order.CouponCode))
         {
