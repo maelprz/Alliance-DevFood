@@ -4,6 +4,7 @@ import { useAuth } from "../hooks/useAuth";
 import { PERMISSIONS } from "../constants/auth";
 import { hasPermission } from "../utils/rbac";
 import { VIEW } from "../constants/views";
+import { AUTH_VIEW } from "../constants/authViews";
 import { authLinkStyle } from "../constants/authStyles";
 import FormAlert from "../components/FormAlert";
 
@@ -34,10 +35,10 @@ export default function Login() {
     onLoginSuccess: (user) => {
       if (hasPermission(user, PERMISSIONS.ADMIN_PANEL)) {
         setAdminUser(user);
-        navigate("admin");
+        navigate(AUTH_VIEW.ADMIN);
       } else {
         setUser(user);
-        navigate("menu");
+        navigate(VIEW.MENU);
       }
     },
   });
@@ -321,7 +322,7 @@ export default function Login() {
               >
                 <button
                   type="button"
-                  onClick={() => navigate("forgot-password")}
+                  onClick={() => navigate(AUTH_VIEW.FORGOT_PASSWORD)}
                   style={{
                     background: "none",
                     border: "none",

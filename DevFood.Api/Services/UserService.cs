@@ -25,7 +25,7 @@ public class UserService(UserRepository users)
     public static JsonObject ToSessionDto(User u, IEnumerable<string> permissions)
     {
         var dto = JsonSerializer.SerializeToNode(ToDto(u))!.AsObject();
-        dto["permissions"] = new JsonArray(permissions.Select(p => (JsonNode?)JsonValue.Create(p)).ToArray());
+        dto[SessionFields.Permissions] = new JsonArray(permissions.Select(p => (JsonNode?)JsonValue.Create(p)).ToArray());
         return dto;
     }
 

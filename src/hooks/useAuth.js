@@ -13,6 +13,8 @@ import {
 } from "../utils/rateLimiter";
 import { MAX_LOGIN_ATTEMPTS } from "../constants/auth";
 import { useNav } from "../context/useNav";
+import { VIEW } from "../constants/views";
+import { AUTH_VIEW } from "../constants/authViews";
 
 
 
@@ -28,8 +30,8 @@ const INITIAL_REGISTER_FORM = {
 export function useAuth({ onLoginSuccess }) {
   // tab based on url (/login or /signup)
   const { view, navigate } = useNav();
-  const isSignUp = view === "signup";
-  const setIsSignUp = useCallback((signUp) => navigate(signUp ? "signup" : "login"), [navigate]);
+  const isSignUp = view === AUTH_VIEW.SIGNUP;
+  const setIsSignUp = useCallback((signUp) => navigate(signUp ? AUTH_VIEW.SIGNUP : VIEW.LOGIN), [navigate]);
   const [loading, setLoading] = useState(false);
   const [loginForm, setLoginForm] = useState(INITIAL_LOGIN_FORM);
   const [registerForm, setRegisterForm] = useState(INITIAL_REGISTER_FORM);

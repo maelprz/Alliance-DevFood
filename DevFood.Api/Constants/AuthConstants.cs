@@ -67,3 +67,8 @@ public static class ResponseHeaders
 {
     public const string TotalCount = "X-Total-Count";
 }
+
+public static class SessionFields
+{
+    public const string Permissions = "permissions";
+}

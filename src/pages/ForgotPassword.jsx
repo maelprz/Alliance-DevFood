@@ -5,6 +5,7 @@ import FormAlert from "../components/FormAlert";
 import { requestPasswordReset } from "../services/authService";
 import { isValidEmail } from "../utils/validation";
 import { authInputStyle, authButtonStyle, authLinkStyle } from "../constants/authStyles";
+import { VIEW } from "../constants/views";
 
 
 
@@ -85,7 +86,7 @@ export default function ForgotPassword() {
       )}
 
       <div style={{ textAlign: "center", marginTop: 20 }}>
-        <button type="button" onClick={() => navigate("login")} style={authLinkStyle}>
+        <button type="button" onClick={() => navigate(VIEW.LOGIN)} style={authLinkStyle}>
           ← Back to login
         </button>
       </div>

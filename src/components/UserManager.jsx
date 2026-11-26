@@ -4,6 +4,7 @@ import { useNav } from "../context/useNav";
 import { listUsers, setUserActive } from "../services/userService";
 import { PERMISSIONS, ROLES, SORT_DIR, USER_SORT } from "../constants/auth";
 import { hasPermission } from "../utils/rbac";
+import { VIEW } from "../constants/views";
 import FormAlert from "./FormAlert";
 
 const PAGE_SIZE = 10;
@@ -45,7 +46,7 @@ export default function UserManager() {
   useEffect(() => {
     if (!sessionExpired) return;
     setAdminUser(null);
-    navigate("login");
+    navigate(VIEW.LOGIN);
   }, [sessionExpired, setAdminUser, navigate]);
 
   

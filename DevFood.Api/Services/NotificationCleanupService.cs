@@ -11,7 +11,7 @@ public class NotificationCleanupService(IServiceScopeFactory scopes, ILogger<Not
                 using var scope = scopes.CreateScope();
                 var notificationService = scope.ServiceProvider.GetRequiredService<NotificationService>();
                 var expired = await notificationService.ExpireOld();
-                if (expired > 0) log.LogInformation("Soft-deleted {Count} notification(s) older than 30 days", expired);
+                if (expired > 0) log.LogInformation("Soft-deleted {Count} notification(s) older than {Days} days", expired, NotificationRules.KeepFor.TotalDays);
             }
             // if a run fails just try again next time
             catch (Exception e) when (!stoppingToken.IsCancellationRequested)

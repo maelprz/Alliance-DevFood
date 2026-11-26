@@ -6,6 +6,8 @@ import { resetPassword } from "../services/authService";
 import { validatePassword } from "../utils/validation";
 import { authInputStyle, authButtonStyle, authLinkStyle } from "../constants/authStyles";
 import { RESET_TOKEN_PARAM } from "../constants/auth";
+import { VIEW } from "../constants/views";
+import { AUTH_VIEW } from "../constants/authViews";
 
 
 function tokenFromUrl() {
@@ -35,7 +37,7 @@ export default function ResetPassword() {
 
   function goToLogin() {
     clearTokenFromUrl();
-    navigate("login");
+    navigate(VIEW.LOGIN);
   }
 
   async function handleSubmit(e) {
@@ -67,7 +69,7 @@ export default function ResetPassword() {
   if (!token) {
     return (
       <AuthCard title="Reset link missing" subtitle="Open the link from your email, or request a new one.">
-        <button type="button" onClick={() => navigate("forgot-password")} style={authButtonStyle(false)}>
+        <button type="button" onClick={() => navigate(AUTH_VIEW.FORGOT_PASSWORD)} style={authButtonStyle(false)}>
           Request a new link
         </button>
         <div style={{ textAlign: "center", marginTop: 20 }}>
