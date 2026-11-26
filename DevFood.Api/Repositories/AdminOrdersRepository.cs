@@ -1,46 +1,39 @@
 using Microsoft.EntityFrameworkCore;
 
-public record AdminOrderPage(List<Order> Items, int Total, int Page, int TotalPages);
-
 public class AdminOrdersRepository(AppDbContext db)
 {
-    public async Task<AdminOrderPage> GetPage(int page, string? search, string status)
+    private IQueryable<Order> Search(string? status, string? search, int? orderId)
     {
-        const int pageSize = 10;
-        var query = db.Orders.AsNoTracking().Where(order => order.IsDeleted == false && order.IsHiddenFromAdmin == false);
+        var query = db.Orders.AsNoTracking()
+            .Where(order => order.IsDeleted == false && order.IsHiddenFromAdmin == false);
 
-        if (status != "All")
+        if (status is not null)
             query = query.Where(order => order.Status == status);
 
-        if (string.IsNullOrWhiteSpace(search) == false)
+        if (search is not null)
         {
-            var text = search.Trim();
-            var pattern = "%" + text + "%";
-            var orderText = text;
-            if (orderText.StartsWith("ORD-", StringComparison.OrdinalIgnoreCase))
-                orderText = orderText.Substring(4);
-
-            var orderId = -1;
-            if (int.TryParse(orderText, out var parsedId))
-                orderId = parsedId;
-
+            var pattern = "%" + search + "%";
             query = query.Where(order =>
                 EF.Functions.ILike(order.User.FullName, pattern) ||
-                order.Id.ToString().Contains(text) ||
+                order.Id.ToString().Contains(search) ||
                 order.Id == orderId);
         }
+        return query;
+    }
 
-        var total = await query.CountAsync();
-        var totalPages = Math.Max(1, (int)Math.Ceiling(total / (double)pageSize));
-        var currentPage = Math.Clamp(page, 1, totalPages);
-        var orders = await query
+    public Task<int> Count(string? status, string? search, int? orderId)
+    {
+        return Search(status, search, orderId).CountAsync();
+    }
+
+    public Task<List<Order>> GetPage(string? status, string? search, int? orderId, int offset, int limit)
+    {
+        return Search(status, search, orderId)
             .Include(order => order.Items)
             .OrderByDescending(order => order.Id)
-            .Skip((currentPage - 1) * pageSize)
-            .Take(pageSize)
+            .Skip(offset)
+            .Take(limit)
             .ToListAsync();
-
-        return new AdminOrderPage(orders, total, currentPage, totalPages);
     }
 
     public Task<List<Order>> FindVisible(List<int> ids)

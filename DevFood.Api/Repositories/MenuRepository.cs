@@ -1,7 +1,5 @@
 using Microsoft.EntityFrameworkCore;
 
-public record MenuPage(List<MenuItem> Items, int Total, int Page, int TotalPages);
-
 public class MenuRepository(AppDbContext db)
 {
     public Task<List<MenuItem>> GetAll()
@@ -9,36 +7,35 @@ public class MenuRepository(AppDbContext db)
         return db.MenuItems.OrderBy(item => item.Id).ToListAsync();
     }
 
-    public async Task<MenuPage> GetAdmin(string? category, int page)
+    private IQueryable<MenuItem> FindByCategory(string? category)
     {
         var query = db.MenuItems.AsNoTracking().AsQueryable();
-        if (string.IsNullOrWhiteSpace(category) == false && category != "All")
-        {
+        if (category is not null)
             query = query.Where(item => item.Category == category);
+        return query;
+    }
+
+    public Task<int> Count(string? category)
+    {
+        return FindByCategory(category).CountAsync();
+    }
+
+    public async Task<List<MenuItem>> GetAdmin(
+        string? category, int offset, int limit,
+        IEnumerable<string> categoryOrder, bool pinNewest)
+    {
+        var query = FindByCategory(category);
+        var newestId = await query.MaxAsync(item => (int?)item.Id);
+        var ordered = query.OrderByDescending(item => pinNewest && item.Id == newestId);
+        foreach (var categoryName in categoryOrder)
+        {
+            ordered = ordered.ThenByDescending(item => item.Category == categoryName);
         }
 
-        const int pageSize = 10;
-        var total = await query.CountAsync();
-        var totalPages = Math.Max(1, (int)Math.Ceiling(total / (double)pageSize));
-        var currentPage = Math.Clamp(page, 1, totalPages);
-        var newestId = await query.MaxAsync(item => (int?)item.Id);
-        var items = await query
-            .OrderByDescending(item => item.Id == newestId)
-            .ThenByDescending(item => item.Category == MenuCategories.Burger)
-            .ThenByDescending(item => item.Category == MenuCategories.Sandwich)
-            .ThenByDescending(item => item.Category == MenuCategories.Chicken)
-            .ThenByDescending(item => item.Category == MenuCategories.Pizzas)
-            .ThenByDescending(item => item.Category == MenuCategories.RiceMeals)
-            .ThenByDescending(item => item.Category == MenuCategories.Snacks)
-            .ThenByDescending(item => item.Category == MenuCategories.Spaghetti)
-            .ThenByDescending(item => item.Category == MenuCategories.Dessert)
-            .ThenByDescending(item => item.Category == MenuCategories.Drinks)
-            .ThenByDescending(item => item.Id)
-            .Skip((currentPage - 1) * pageSize)
-            .Take(pageSize)
+        return await ordered.ThenByDescending(item => item.Id)
+            .Skip(offset)
+            .Take(limit)
             .ToListAsync();
-
-        return new MenuPage(items, total, currentPage, totalPages);
     }
 
     public async Task<MenuItem?> Find(int id)

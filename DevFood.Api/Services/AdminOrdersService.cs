@@ -5,11 +5,28 @@ public class AdminOrdersService(AdminOrdersRepository repository)
 
     public async Task<ServiceResult> Get(int page = 1, string? search = null, string status = "All")
     {
-        var result = await repository.GetPage(page, search, status);
-        var orders = result.Items;
-        var total = result.Total;
-        var currentPage = result.Page;
-        var totalPages = result.TotalPages;
+        const int pageSize = 10;
+        string? statusFilter = null;
+        if (status != "All") statusFilter = status;
+
+        string? searchText = null;
+        int? orderId = null;
+        if (string.IsNullOrWhiteSpace(search) == false)
+        {
+            searchText = search.Trim();
+            var orderText = searchText;
+            if (orderText.StartsWith("ORD-", StringComparison.OrdinalIgnoreCase))
+                orderText = orderText.Substring(4);
+
+            if (int.TryParse(orderText, out var parsedId))
+                orderId = parsedId;
+        }
+
+        var total = await repository.Count(statusFilter, searchText, orderId);
+        var totalPages = Math.Max(1, (int)Math.Ceiling(total / (double)pageSize));
+        var currentPage = Math.Clamp(page, 1, totalPages);
+        var offset = (currentPage - 1) * pageSize;
+        var orders = await repository.GetPage(statusFilter, searchText, orderId, offset, pageSize);
 
         return ServiceResults.Ok(new
         {

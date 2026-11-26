@@ -43,11 +43,16 @@ public class MenuService(MenuRepository repository, IWebHostEnvironment environm
 
     public async Task<ServiceResult> GetAdmin(string? category, int page = 1)
     {
-        var result = await repository.GetAdmin(category, page);
-        var items = result.Items;
-        var total = result.Total;
-        var currentPage = result.Page;
-        var totalPages = result.TotalPages;
+        const int pageSize = 10;
+        string? categoryFilter = null;
+        if (string.IsNullOrWhiteSpace(category) == false && category != "All")
+            categoryFilter = category;
+
+        var total = await repository.Count(categoryFilter);
+        var totalPages = Math.Max(1, (int)Math.Ceiling(total / (double)pageSize));
+        var currentPage = Math.Clamp(page, 1, totalPages);
+        var offset = (currentPage - 1) * pageSize;
+        var items = await repository.GetAdmin(categoryFilter, offset, pageSize, Categories, true);
 
         return ServiceResults.Ok(new { items = items.Select(ToDto).ToList(), total, page = currentPage, totalPages });
     }
