@@ -1,9 +1,10 @@
-import { useEffect } from "react";
 import { useNav } from "../context/useNav";
 import { useApp } from "../context/useApp";
 import { useAuth } from "../hooks/useAuth";
 import { PERMISSIONS } from "../constants/auth";
 import { hasPermission } from "../utils/rbac";
+import { VIEW } from "../constants/views";
+import { authLinkStyle } from "../constants/authStyles";
 import FormAlert from "../components/FormAlert";
 
 
@@ -12,17 +13,10 @@ export default function Login() {
   const { navigate } = useNav();
   const { setUser, setAdminUser } = useApp();
 
-  
-  
-  useEffect(() => {
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = prev;
-    };
-  }, []);
+  // No scroll lock here: on short screens the Sign Up form is taller than the
+  // window, so the page has to scroll to reach the Create Account button.
 
-  
+
   const {
     isSignUp,
     setIsSignUp,
@@ -119,7 +113,18 @@ export default function Login() {
         }}
       >
       <div style={{ width: "100%", maxWidth: 440 }}>
-        
+        {/* For guests who change their mind: go back to browsing without logging in.
+            Kept at the top so it stays visible on short screens (this page doesn't scroll). */}
+        <div style={{ marginBottom: 16 }}>
+          <button
+            type="button"
+            onClick={() => navigate(VIEW.MENU)}
+            style={{ ...authLinkStyle, color: "#ffffff", fontSize: 14, fontWeight: 600, textShadow: "0 1px 6px rgba(0,0,0,0.15)" }}
+          >
+            ← Back to Menu
+          </button>
+        </div>
+
         <div style={{ textAlign: "center", marginBottom: 32 }}>
           <h1
             style={{
