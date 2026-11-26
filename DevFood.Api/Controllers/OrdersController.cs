@@ -8,9 +8,6 @@ using Microsoft.AspNetCore.Mvc;
 // Services/OrderService.cs and Repositories/OrderRepository.cs.
 public class OrdersController(OrderService orderService) : ControllerBase
 {
-    // Kept so AdminOrdersService can keep calling OrdersController.ToDto.
-    public static object ToDto(Order o) => OrderService.ToDto(o);
-
     [HttpGet]
     public async Task<IActionResult> GetAll([FromQuery(Name = "user_id")] int? userId)
         => Send(await orderService.GetAll(userId));
