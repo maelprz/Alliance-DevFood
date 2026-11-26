@@ -1,11 +1,5 @@
-using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-
-public record NotificationCreate(string? Title, string? Message, string? Audience, string? CouponCode);
-
-public record NotificationReadRequest(
-    [property: JsonPropertyName("user_id")] int UserId);
 
 [ApiController]
 [Route("api/notifications")]

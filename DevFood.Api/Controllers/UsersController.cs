@@ -1,16 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
-public record UserPatch(
-    string? Name,
-    string? Email,
-    string? Phone,
-    string? AddressStreet,
-    string? AddressCity,
-    string? AddressZip,
-    string? CurrentPassword,
-    string? NewPassword);
-
 [ApiController]
 [Route("api/users")]
 [Authorize]
@@ -21,9 +11,11 @@ public class UsersController(UserService service) : ControllerBase
     public async Task<IActionResult> GetAll(
         [FromQuery] int? page,
         [FromQuery] int? pageSize,
-        [FromQuery] string? search)
+        [FromQuery] string? search,
+        [FromQuery] string? sort,
+        [FromQuery] string? dir)
     {
-        var result = await service.GetAll(page, pageSize, search);
+        var result = await service.GetAll(page, pageSize, search, sort, dir);
         if (result.TotalCount is { } total) Response.Headers[ResponseHeaders.TotalCount] = total.ToString();
         return Ok(result.Users);
     }

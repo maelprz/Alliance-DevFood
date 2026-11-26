@@ -4,9 +4,11 @@ import { authHeaders } from "./authService";
 // Admin "Registered Users" calls. A 401 comes back as { expired: true }
 // so the screen can send the admin back to the login page.
 
-export async function listUsers({ page, pageSize, search }) {
+export async function listUsers({ page, pageSize, search, sort, dir }) {
   const params = new URLSearchParams({ page, pageSize });
   if (search) params.set("search", search);
+  if (sort) params.set("sort", sort);
+  if (dir) params.set("dir", dir);
   const res = await fetch(`${API_ROUTES.USERS}?${params}`, { headers: authHeaders(ROLES.ADMIN) });
   if (res.status === 401) return { expired: true };
   if (!res.ok) throw new Error(`HTTP ${res.status}`);

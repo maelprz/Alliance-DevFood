@@ -39,12 +39,6 @@ function tryStorage(action) {
 }
 
 
-function sessionStore() {
-  if (tryStorage(() => localStorage.getItem(STORAGE_KEYS.TOKEN))) return localStorage;
-  return sessionStorage;
-}
-
-
 async function authorizedFetch(url, options = {}) {
   const result = await apiFetch(url, {
     ...options,
@@ -78,11 +72,11 @@ export async function registerUser({ name, email, password }) {
 }
 
 
-export async function loginUser({ email, password, rememberMe = false }) {
+export async function loginUser({ email, password }) {
   const { res, data } = await apiFetch(API_ROUTES.LOGIN, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, password, rememberMe }),
+    body: JSON.stringify({ email, password }),
   });
 
   if (!res.ok) {
@@ -98,9 +92,8 @@ export async function loginUser({ email, password, rememberMe = false }) {
   if (data.user.role === ROLES.ADMIN) {
     saveAdminToken(data.token);
   } else {
-    const store = rememberMe ? localStorage : sessionStorage;
-    store.setItem(STORAGE_KEYS.TOKEN, data.token);
-    store.setItem(STORAGE_KEYS.USER, JSON.stringify(data.user));
+    sessionStorage.setItem(STORAGE_KEYS.TOKEN, data.token);
+    sessionStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(data.user));
   }
 
   return { success: true, message: data.message, user: data.user };
@@ -119,7 +112,7 @@ export async function fetchCurrentUser() {
   try {
     const { res, data } = await authorizedFetch(API_ROUTES.ME, { method: "GET" });
     if (!res.ok) return null;
-    sessionStore().setItem(STORAGE_KEYS.USER, JSON.stringify(data));
+    sessionStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(data));
     return data;
   } catch {
     
@@ -160,7 +153,7 @@ export async function updateUserProfile(userId, payload) {
   
   
   const user = { ...data, permissions: restoreSession().user?.permissions ?? [] };
-  tryStorage(() => sessionStore().setItem(STORAGE_KEYS.USER, JSON.stringify(user)));
+  tryStorage(() => sessionStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(user)));
   return { success: true, user };
 }
 
@@ -196,7 +189,7 @@ export function authHeaders(kind = ROLES.CUSTOMER) {
     const token =
       kind === ROLES.ADMIN
         ? sessionStorage.getItem(STORAGE_KEYS.ADMIN_TOKEN)
-        : sessionStore().getItem(STORAGE_KEYS.TOKEN);
+        : sessionStorage.getItem(STORAGE_KEYS.TOKEN);
     return token ? { Authorization: `Bearer ${token}` } : {};
   } catch {
     return {};
@@ -206,9 +199,8 @@ export function authHeaders(kind = ROLES.CUSTOMER) {
 
 export function restoreSession() {
   try {
-    const store = sessionStore();
-    const token = store.getItem(STORAGE_KEYS.TOKEN);
-    const user = JSON.parse(store.getItem(STORAGE_KEYS.USER) || "null");
+    const token = sessionStorage.getItem(STORAGE_KEYS.TOKEN);
+    const user = JSON.parse(sessionStorage.getItem(STORAGE_KEYS.USER) || "null");
     if (token && user) return { user, token };
   } catch {
     clearSession();
@@ -217,6 +209,7 @@ export function restoreSession() {
 }
 
 
+// Also clears localStorage, where the old "Remember me" option used to keep the login.
 export function clearSession() {
   for (const store of [sessionStorage, localStorage]) {
     tryStorage(() => {

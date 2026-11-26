@@ -1,3 +1,4 @@
+using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
 
 public record UserPage(List<User> Users, int? Total);
@@ -28,7 +29,7 @@ public class UserRepository(AppDbContext db)
     }
 
     // page = null returns every match; otherwise one page plus the total count.
-    public async Task<UserPage> Search(string? search, int? page, int pageSize)
+    public async Task<UserPage> Search(string? search, UserSortField sort, bool descending, int? page, int pageSize)
     {
         var query = db.Users.AsQueryable();
         if (!string.IsNullOrWhiteSpace(search))
@@ -36,13 +37,27 @@ public class UserRepository(AppDbContext db)
             var pattern = $"%{search.Trim()}%";
             query = query.Where(u => EF.Functions.ILike(u.FullName, pattern) || EF.Functions.ILike(u.Email, pattern));
         }
-        query = query.OrderBy(u => u.Id);
+        var sorted = sort switch
+        {
+            UserSortField.Name => SortBy(query, u => u.FullName, descending),
+            UserSortField.Email => SortBy(query, u => u.Email, descending),
+            UserSortField.Role => SortBy(query, u => u.Role, descending),
+            // Active users first when ascending.
+            UserSortField.Status => SortBy(query, u => !u.IsActive, descending),
+            _ => SortBy(query, u => u.CreatedAt, descending),
+        };
+        query = sorted.ThenBy(u => u.Id);
 
         if (page is null) return new UserPage(await query.ToListAsync(), null);
 
         var total = await query.CountAsync();
         var users = await query.Skip((page.Value - 1) * pageSize).Take(pageSize).ToListAsync();
         return new UserPage(users, total);
+    }
+
+    static IOrderedQueryable<User> SortBy<T>(IQueryable<User> query, Expression<Func<User, T>> key, bool descending)
+    {
+        return descending ? query.OrderByDescending(key) : query.OrderBy(key);
     }
 
     public Task<List<string>> PermissionsForRole(string role)

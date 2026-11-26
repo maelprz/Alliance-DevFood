@@ -2,11 +2,21 @@ import { useState, useEffect } from "react";
 import { useApp } from "../context/useApp";
 import { useNav } from "../context/useNav";
 import { listUsers, setUserActive } from "../services/userService";
-import { PERMISSIONS, ROLES } from "../constants/auth";
+import { PERMISSIONS, ROLES, SORT_DIR, USER_SORT } from "../constants/auth";
 import { hasPermission } from "../utils/rbac";
 import FormAlert from "./FormAlert";
 
 const PAGE_SIZE = 10;
+
+// Columns with a sort key can be clicked to sort (click again to flip the order).
+const COLUMNS = [
+  { label: "Name", sort: USER_SORT.NAME },
+  { label: "Email", sort: USER_SORT.EMAIL },
+  { label: "Role", sort: USER_SORT.ROLE },
+  { label: "Joined", sort: USER_SORT.JOINED },
+  { label: "Status", sort: USER_SORT.STATUS },
+  { label: "Action" },
+];
 
 function formatDate(iso) {
   if (!iso) return "—";
@@ -25,6 +35,7 @@ export default function UserManager() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [query, setQuery] = useState("");
+  const [sort, setSort] = useState({ field: USER_SORT.JOINED, dir: SORT_DIR.ASC });
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState(null); 
   const [confirming, setConfirming] = useState(null); 
@@ -42,7 +53,7 @@ export default function UserManager() {
   
   useEffect(() => {
     let cancelled = false;
-    listUsers({ page, pageSize: PAGE_SIZE, search: query })
+    listUsers({ page, pageSize: PAGE_SIZE, search: query, sort: sort.field, dir: sort.dir })
       .then((result) => {
         if (cancelled) return;
         if (result.expired) {
@@ -61,7 +72,7 @@ export default function UserManager() {
     return () => {
       cancelled = true;
     };
-  }, [page, query]);
+  }, [page, query, sort]);
 
   
   useEffect(() => {
@@ -74,6 +85,15 @@ export default function UserManager() {
     }, 300);
     return () => clearTimeout(t);
   }, [search, query]);
+
+  function changeSort(field) {
+    setLoading(true);
+    setPage(1);
+    setSort((prev) => ({
+      field,
+      dir: prev.field === field && prev.dir === SORT_DIR.ASC ? SORT_DIR.DESC : SORT_DIR.ASC,
+    }));
+  }
 
   async function confirmToggle() {
     if (!confirming) return;
@@ -145,14 +165,40 @@ export default function UserManager() {
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
           <thead>
             <tr style={{ background: "#fdf6ef", borderBottom: "1px solid #e5e7eb" }}>
-              {["Name", "Email", "Role", "Joined", "Status", "Action"].map((head) => (
-                <th
-                  key={head}
-                  style={{ padding: "14px 20px", textAlign: "left", fontSize: 13, fontWeight: 600, color: "#6b7280" }}
-                >
-                  {head}
-                </th>
-              ))}
+              {COLUMNS.map((col) => {
+                const active = col.sort && sort.field === col.sort;
+                const arrow = !active ? "↕" : sort.dir === SORT_DIR.ASC ? "↑" : "↓";
+                return (
+                  <th
+                    key={col.label}
+                    aria-sort={active ? (sort.dir === SORT_DIR.ASC ? "ascending" : "descending") : undefined}
+                    style={{ padding: "14px 20px", textAlign: "left", fontSize: 13, fontWeight: 600, color: "#6b7280" }}
+                  >
+                    {col.sort ? (
+                      <button
+                        type="button"
+                        onClick={() => changeSort(col.sort)}
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 4,
+                          padding: 0,
+                          border: "none",
+                          background: "none",
+                          font: "inherit",
+                          color: active ? "#111827" : "inherit",
+                          cursor: "pointer",
+                        }}
+                      >
+                        {col.label}
+                        <span aria-hidden="true" style={{ opacity: active ? 1 : 0.4 }}>{arrow}</span>
+                      </button>
+                    ) : (
+                      col.label
+                    )}
+                  </th>
+                );
+              })}
             </tr>
           </thead>
           <tbody>

@@ -22,6 +22,20 @@ export const API_ROUTES = {
 
 export const TOTAL_COUNT_HEADER = "X-Total-Count";
 
+// Columns the admin can sort the Users list by (matches UserSortKeys in the API).
+export const USER_SORT = {
+  JOINED: "joined",
+  NAME: "name",
+  EMAIL: "email",
+  ROLE: "role",
+  STATUS: "status",
+};
+
+export const SORT_DIR = {
+  ASC: "asc",
+  DESC: "desc",
+};
+
 
 export const RESET_TOKEN_PARAM = "reset_token";
 

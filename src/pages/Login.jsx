@@ -313,31 +313,11 @@ export default function Login() {
               <div
                 style={{
                   display: "flex",
-                  justifyContent: "space-between",
+                  justifyContent: "flex-end",
                   alignItems: "center",
                   marginTop: -8,
                 }}
               >
-                <label
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 6,
-                    fontSize: 13,
-                    color: "#374151",
-                    cursor: "pointer",
-                  }}
-                >
-                  <input
-                    type="checkbox"
-                    checked={loginForm.rememberMe}
-                    onChange={(e) =>
-                      setLoginForm({ ...loginForm, rememberMe: e.target.checked })
-                    }
-                    style={{ accentColor: "#FF5A36" }}
-                  />
-                  Remember me
-                </label>
                 <button
                   type="button"
                   onClick={() => navigate("forgot-password")}

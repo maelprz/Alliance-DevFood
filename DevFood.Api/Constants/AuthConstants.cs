@@ -34,10 +34,22 @@ public static class AuthRules
     public const string ResetTokenParam = "reset_token";
 
     public static readonly TimeSpan SessionLifetime = TimeSpan.FromHours(8);
-    public static readonly TimeSpan RememberMeLifetime = TimeSpan.FromDays(30);
     public static readonly TimeSpan ResetLinkLifetime = TimeSpan.FromMinutes(30);
     public static readonly TimeSpan ResetRequestCooldown = TimeSpan.FromMinutes(1);
     public static readonly TimeSpan NameChangeCooldown = TimeSpan.FromDays(30);
+}
+
+// Columns the admin can sort the Users list by: GET /api/users?sort=name&dir=desc
+public enum UserSortField { Joined, Name, Email, Role, Status }
+
+public static class UserSortKeys
+{
+    public const string Joined = "joined";
+    public const string Name = "name";
+    public const string Email = "email";
+    public const string Role = "role";
+    public const string Status = "status";
+    public const string Descending = "desc";
 }
 
 public static class AuthMessages

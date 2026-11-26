@@ -16,7 +16,7 @@ import { useNav } from "../context/useNav";
 
 
 
-const INITIAL_LOGIN_FORM = { email: "", password: "", rememberMe: false };
+const INITIAL_LOGIN_FORM = { email: "", password: "" };
 const INITIAL_REGISTER_FORM = {
   name: "",
   email: "",
@@ -122,7 +122,6 @@ export function useAuth({ onLoginSuccess }) {
       const result = await loginUser({
         email: loginForm.email,
         password: loginForm.password,
-        rememberMe: loginForm.rememberMe,
       });
 
       

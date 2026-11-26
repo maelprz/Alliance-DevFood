@@ -2,11 +2,6 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
-public record RegisterRequest(string? Name, string? Email, string? Password);
-public record LoginRequest(string? Email, string? Password, bool? RememberMe);
-public record ForgotPasswordRequest(string? Email);
-public record ResetPasswordRequest(string? Token, string? NewPassword);
-
 [ApiController]
 [Route("api/auth")]
 public class AuthController(AuthService service) : ControllerBase

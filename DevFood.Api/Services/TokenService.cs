@@ -24,12 +24,10 @@ public class TokenService
         }
     }
 
-    public (string Token, DateTime ExpiresAt) Issue(User user, bool rememberMe)
+    public (string Token, DateTime ExpiresAt) Issue(User user)
     {
         var now = DateTime.UtcNow;
-        var lifetime = AuthRules.SessionLifetime;
-        if (rememberMe) lifetime = AuthRules.RememberMeLifetime;
-        var expires = now.Add(lifetime);
+        var expires = now.Add(AuthRules.SessionLifetime);
         var token = new JsonWebTokenHandler().CreateToken(new SecurityTokenDescriptor
         {
             Issuer = Issuer,

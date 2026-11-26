@@ -31,13 +31,24 @@ public class UserService(UserRepository users)
 
     static ServiceResult NotFound() => ServiceResults.NotFound(new { message = AuthMessages.UserNotFound });
 
-    public async Task<UserList> GetAll(int? page, int? pageSize, string? search)
+    public async Task<UserList> GetAll(int? page, int? pageSize, string? search, string? sort, string? dir)
     {
         var size = Math.Clamp(pageSize ?? AuthRules.DefaultPageSize, 1, AuthRules.MaxPageSize);
         int? current = page is null ? null : Math.Max(page.Value, 1);
-        var result = await users.Search(search, current, size);
+        var descending = string.Equals(dir?.Trim(), UserSortKeys.Descending, StringComparison.OrdinalIgnoreCase);
+        var result = await users.Search(search, ParseSort(sort), descending, current, size);
         return new UserList(result.Users.Select(ToDto), result.Total);
     }
+
+    // Unknown or missing sort keys fall back to the join date.
+    static UserSortField ParseSort(string? sort) => sort?.Trim().ToLowerInvariant() switch
+    {
+        UserSortKeys.Name => UserSortField.Name,
+        UserSortKeys.Email => UserSortField.Email,
+        UserSortKeys.Role => UserSortField.Role,
+        UserSortKeys.Status => UserSortField.Status,
+        _ => UserSortField.Joined,
+    };
 
     public async Task<ServiceResult> Get(int id, CurrentUser me)
     {

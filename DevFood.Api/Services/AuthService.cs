@@ -64,9 +64,7 @@ public class AuthService(
         if (!user.IsActive)
             return ServiceResults.StatusCode(403, new { message = "This account has been deactivated. Please contact the admin." });
 
-        // "Remember me" is for customers only; admin sessions always last 8 hours.
-        var rememberMe = req.RememberMe == true && user.Role != Roles.Admin;
-        var (token, expiresAt) = tokens.Issue(user, rememberMe);
+        var (token, expiresAt) = tokens.Issue(user);
         var permissions = await users.PermissionsForRole(user.Role);
         return ServiceResults.Ok(new
         {

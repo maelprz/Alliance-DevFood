@@ -4,6 +4,7 @@ import { useApp } from "../context/useApp";
 import { useNav } from "../context/useNav";
 import { getUserProfile, updateUserProfile } from "../services/authService";
 import FormAlert from "../components/FormAlert";
+import { formatOrderId } from "../constants/orderStatus";
 
 const STATUS_COLORS = {
   Pending: { color: "#b45309", bg: "#fef3c7" },
@@ -604,7 +605,7 @@ export default function Profile() {
                               fontFamily: "monospace",
                             }}
                           >
-                            #{o.order_id}
+                            {formatOrderId(o.order_id)}
                           </p>
                           <p style={{ fontSize: 12, color: "#6b7280", margin: "4px 0 0" }}>
                             {formatDate(o.created_at ?? o.createdAt)}
