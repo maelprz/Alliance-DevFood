@@ -1,8 +1,7 @@
 import { API_ROUTES, ROLES, TOTAL_COUNT_HEADER } from "../constants/auth";
 import { authHeaders } from "./authService";
 
-// Admin "Registered Users" calls. A 401 comes back as { expired: true }
-// so the screen can send the admin back to the login page.
+// admin users api, 401 returns { expired: true }
 
 export async function listUsers({ page, pageSize, search, sort, dir }) {
   const params = new URLSearchParams({ page, pageSize });

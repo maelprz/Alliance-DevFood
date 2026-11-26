@@ -1,6 +1,4 @@
-// Background job: once at startup and then every hour, notifications older than
-// 30 days are soft-deleted (IsDeleted = true) so they never show again.
-// The rule itself lives in NotificationService.ExpireOld.
+// runs on startup then every hour, see NotificationService.ExpireOld
 public class NotificationCleanupService(IServiceScopeFactory scopes, ILogger<NotificationCleanupService> log)
     : BackgroundService
 {
@@ -15,7 +13,7 @@ public class NotificationCleanupService(IServiceScopeFactory scopes, ILogger<Not
                 var expired = await notificationService.ExpireOld();
                 if (expired > 0) log.LogInformation("Soft-deleted {Count} notification(s) older than 30 days", expired);
             }
-            // A failed run (for example a database timeout) is skipped; only app shutdown ends the loop.
+            // if a run fails just try again next time
             catch (Exception e) when (!stoppingToken.IsCancellationRequested)
             {
                 log.LogWarning(e, "Notification cleanup failed; trying again next run");

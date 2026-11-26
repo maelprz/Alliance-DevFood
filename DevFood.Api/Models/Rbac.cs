@@ -1,5 +1,4 @@
-// Role-based access control (RBAC): users have one role; roles grant permissions.
-// users.role is a foreign key to roles.name, so only roles that exist here can be assigned.
+// rbac: user has one role, role has permissions. users.role is FK to roles.name
 public class Role
 {
     public string Name { get; set; } = "";
@@ -13,7 +12,7 @@ public class Permission
     public string Description { get; set; } = "";
 }
 
-// Which permissions each role grants (many-to-many between roles and permissions).
+// role <-> permission (many to many)
 public class RolePermission
 {
     public string RoleName { get; set; } = "";

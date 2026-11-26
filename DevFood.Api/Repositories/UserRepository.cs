@@ -22,13 +22,13 @@ public class UserRepository(AppDbContext db)
         return db.Users.FirstOrDefaultAsync(u => u.Email == email && u.IsActive);
     }
 
-    // exceptUserId lets a user keep their own email when editing the profile.
+    // exceptUserId so saving profile with same email still works
     public Task<bool> EmailInUse(string email, int exceptUserId = 0)
     {
         return db.Users.AnyAsync(u => u.Email == email && u.Id != exceptUserId);
     }
 
-    // page = null returns every match; otherwise one page plus the total count.
+    // page null = return all
     public async Task<UserPage> Search(string? search, UserSortField sort, bool descending, int? page, int pageSize)
     {
         var query = db.Users.AsQueryable();
@@ -42,7 +42,7 @@ public class UserRepository(AppDbContext db)
             UserSortField.Name => SortBy(query, u => u.FullName, descending),
             UserSortField.Email => SortBy(query, u => u.Email, descending),
             UserSortField.Role => SortBy(query, u => u.Role, descending),
-            // Active users first when ascending.
+            // active first
             UserSortField.Status => SortBy(query, u => !u.IsActive, descending),
             _ => SortBy(query, u => u.CreatedAt, descending),
         };
@@ -69,7 +69,7 @@ public class UserRepository(AppDbContext db)
             .ToListAsync();
     }
 
-    // One query per request: account state, logout check and the role's permissions.
+    // status, logout check and permissions in one query
     public Task<SessionState?> GetSessionState(int? userId, string? jti)
     {
         return db.Users.AsNoTracking()

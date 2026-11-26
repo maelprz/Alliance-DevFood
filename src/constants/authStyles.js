@@ -1,5 +1,5 @@
-// Shared inline styles for the auth pages (Forgot / Reset Password).
-// Exports only style constants — React Compiler rule (one export type per file)
+// styles for forgot/reset password pages
+// only styles here (react compiler rule)
 
 export const authInputStyle = (hasError) => ({
   width: "100%",

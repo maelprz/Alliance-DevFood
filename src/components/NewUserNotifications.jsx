@@ -8,8 +8,7 @@ import {
 } from "../services/notificationService";
 import { describeCoupon } from "../utils/coupon";
 
-// Admin box: messages every new account gets right after sign-up, so they
-// don't have to be sent again for each new customer.
+// msgs every new account gets on signup
 
 const EMPTY_FORM = { title: "", body: "", couponCode: "" };
 

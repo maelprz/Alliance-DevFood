@@ -28,7 +28,7 @@ public class AuthService(
         if (await users.EmailInUse(email))
             return ServiceResults.Conflict(new { message = "An account with this email already exists." });
 
-        // Sign up always creates a customer; admins are set in the database.
+        // new signups are always customers
         var user = new User
         {
             FullName = name,
@@ -38,7 +38,7 @@ public class AuthService(
         };
         await users.Add(user);
 
-        // A failed welcome message must not undo a finished sign-up.
+        // don't fail signup if welcome msg fails
         try
         {
             await notifications.WelcomeNewUser(user.Id);
@@ -75,7 +75,7 @@ public class AuthService(
         });
     }
 
-    // Saves the token id until it expires, so the same token is refused from now on.
+    // revoke token until it expires
     public async Task<ServiceResult> Logout(string? jti, string? exp)
     {
         if (jti is not null && long.TryParse(exp, out var expSeconds))
@@ -97,9 +97,8 @@ public class AuthService(
         return ServiceResults.Ok(UserService.ToSessionDto(user, permissions.Order()));
     }
 
-    // Runs on every request with a token (see Program.cs). Returns null when the
-    // session must be refused: user gone or deactivated, logged out, or the token
-    // was issued before the last password reset.
+    // called on every request (Program.cs)
+    // null = reject (deactivated, logged out, or pw reset after token)
     public async Task<SessionState?> CheckSession(int? userId, string? jti, DateTime issuedAt)
     {
         var state = await users.GetSessionState(userId, jti);
@@ -108,7 +107,7 @@ public class AuthService(
         return state;
     }
 
-    // Always answers with the same message so nobody can check which emails are registered.
+    // same response even if email isn't registered
     public async Task<ServiceResult> ForgotPassword(ForgotPasswordRequest req)
     {
         var address = NormalizeEmail(req.Email);
@@ -121,7 +120,7 @@ public class AuthService(
         if (await authTokens.HasResetSince(user.Id, now - AuthRules.ResetRequestCooldown))
             return ServiceResults.Ok(new { message = AuthMessages.ResetLinkSent });
 
-        // Only the hash is stored; the raw token exists only in the emailed link.
+        // save only the hash, raw token goes in the email
         var rawToken = Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
         await authTokens.AddReset(new PasswordResetToken
         {
@@ -171,7 +170,7 @@ public class AuthService(
             return ServiceResults.BadRequest(new { message = "This reset link is invalid or has expired. Please request a new one." });
 
         reset.User.PasswordHash = BCrypt.Net.BCrypt.HashPassword(req.NewPassword);
-        // Tokens issued before this second stop working (logs out other devices).
+        // logs out other devices
         reset.User.SessionsValidAfter = now.AddTicks(-(now.Ticks % TimeSpan.TicksPerSecond));
         await authTokens.MarkResetsUsed(reset.UserId, now);
         await authTokens.Save();

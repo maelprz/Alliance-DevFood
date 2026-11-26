@@ -1,4 +1,4 @@
-// Starting rows for the roles, permissions and role_permissions tables (used by HasData).
+// default roles and permissions (HasData)
 public static class RbacSeed
 {
     public static readonly Role[] Roles =

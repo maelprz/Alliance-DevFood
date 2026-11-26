@@ -21,7 +21,7 @@ public class UserService(UserRepository users)
         createdAt = u.CreatedAt
     };
 
-    // The user plus their role's permissions; returned by login and /auth/me.
+    // user + permissions, for login and /auth/me
     public static JsonObject ToSessionDto(User u, IEnumerable<string> permissions)
     {
         var dto = JsonSerializer.SerializeToNode(ToDto(u))!.AsObject();
@@ -40,7 +40,7 @@ public class UserService(UserRepository users)
         return new UserList(result.Users.Select(ToDto), result.Total);
     }
 
-    // Unknown or missing sort keys fall back to the join date.
+    // default is joined
     static UserSortField ParseSort(string? sort) => sort?.Trim().ToLowerInvariant() switch
     {
         UserSortKeys.Name => UserSortField.Name,
@@ -58,7 +58,7 @@ public class UserService(UserRepository users)
         return ServiceResults.Ok(ToDto(user));
     }
 
-    // Only the owner can edit a profile, admins included.
+    // owner only, admin can't edit others
     public async Task<ServiceResult> Update(int id, CurrentUser me, UserPatch req)
     {
         if (me.Id != id) return CurrentUser.Denied();
@@ -106,7 +106,7 @@ public class UserService(UserRepository users)
         return ServiceResults.Ok(ToDto(user));
     }
 
-    // Soft delete: the row stays (orders keep their customer), the account just can't log in.
+    // soft delete so orders keep the customer
     public async Task<ServiceResult> Deactivate(int id, CurrentUser me)
     {
         var user = await users.Find(id);

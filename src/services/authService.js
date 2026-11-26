@@ -29,7 +29,7 @@ async function apiFetch(url, options) {
 }
 
 
-// Browser storage can throw (private mode, blocked site data); then nothing is saved.
+// storage can throw in private mode
 function tryStorage(action) {
   try {
     return action();
@@ -209,7 +209,7 @@ export function restoreSession() {
 }
 
 
-// Also clears localStorage, where the old "Remember me" option used to keep the login.
+// also clear localStorage (old remember me)
 export function clearSession() {
   for (const store of [sessionStorage, localStorage]) {
     tryStorage(() => {

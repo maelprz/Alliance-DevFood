@@ -5,6 +5,7 @@ import { useNav } from "../context/useNav";
 import { getUserProfile, updateUserProfile } from "../services/authService";
 import FormAlert from "../components/FormAlert";
 import { formatOrderId } from "../constants/orderStatus";
+import { VIEW } from "../constants/views";
 
 const STATUS_COLORS = {
   Pending: { color: "#b45309", bg: "#fef3c7" },
@@ -214,7 +215,23 @@ export default function Profile() {
       <Navbar />
 
       <div style={{ maxWidth: 1100, margin: "0 auto", padding: "32px 16px" }}>
-        
+        <button
+          type="button"
+          onClick={() => navigate(VIEW.MENU)}
+          style={{
+            background: "none",
+            border: "none",
+            padding: 0,
+            color: "#6b7280",
+            fontSize: 14,
+            cursor: "pointer",
+            marginBottom: 16,
+            fontFamily: "inherit",
+          }}
+        >
+          ← Back to Menu
+        </button>
+
         <div
           style={{
             background: "#ffffff",

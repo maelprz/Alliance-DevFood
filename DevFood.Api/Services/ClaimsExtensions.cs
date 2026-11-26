@@ -1,12 +1,11 @@
 using System.Security.Claims;
 
-// The logged-in user as the services see it: their id, and whether their role
-// may open other users' data (users.view). Built from the token in the controller.
+// current user from token (id + can view other users)
 public record CurrentUser(int? Id, bool CanViewOthers)
 {
     public bool CanAccess(int userId) => Id == userId || CanViewOthers;
 
-    // Same JSON body the [Authorize] check sends, so the frontend shows one message.
+    // same message as the [Authorize] check
     public static ServiceResult Denied() => ServiceResults.StatusCode(403, new { message = AuthMessages.NoPermission });
 }
 

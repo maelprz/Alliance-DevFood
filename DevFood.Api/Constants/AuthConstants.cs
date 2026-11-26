@@ -1,4 +1,4 @@
-// Fixed values for login, users and notifications, kept in one place.
+// auth and user constants
 
 public static class ClaimNames
 {
@@ -39,7 +39,7 @@ public static class AuthRules
     public static readonly TimeSpan NameChangeCooldown = TimeSpan.FromDays(30);
 }
 
-// Columns the admin can sort the Users list by: GET /api/users?sort=name&dir=desc
+// sort options for the users list
 public enum UserSortField { Joined, Name, Email, Role, Status }
 
 public static class UserSortKeys

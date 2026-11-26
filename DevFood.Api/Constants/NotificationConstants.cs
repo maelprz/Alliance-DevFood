@@ -1,5 +1,4 @@
-// Announcements the admin sends to every customer. Order notification types
-// (order_confirmed, order_status) are in OrderConstants.cs.
+// announcement audiences (order notif types are in OrderConstants)
 
 public static class BroadcastTypes
 {
@@ -9,25 +8,24 @@ public static class BroadcastTypes
 
 public static class BroadcastAudiences
 {
-    // Sent once to every customer who already has an account.
+    // send now to all existing customers
     public const string All = "all";
 
-    // Kept by the server and given to each customer when they sign up.
+    // saved, given to each new signup
     public const string NewUsers = "new_users";
 }
 
 public static class NotificationRules
 {
-    // The bell only lists notifications from this recent window. Older rows stay in the database.
+    // how far back the bell shows
     public static readonly TimeSpan BellWindow = TimeSpan.FromDays(7);
 
-    // "See previous notifications" loads older ones this many at a time.
+    // page size for older notifs
     public const int OlderPageSize = 10;
 
-    // After this, a notification is soft-deleted (IsDeleted = true) and never shown again.
-    // The row stays in the database; nothing is permanently deleted.
+    // soft delete after this (row stays in db)
     public static readonly TimeSpan KeepFor = TimeSpan.FromDays(30);
 
-    // How often the background job looks for notifications past KeepFor.
+    // how often the cleanup job runs
     public static readonly TimeSpan CleanupInterval = TimeSpan.FromHours(1);
 }

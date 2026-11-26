@@ -1,5 +1,5 @@
-// Customer side: list notifications and mark them read (order rows come from the order flow).
-// Admin side: list, send and soft delete announcements (now for everyone, or on sign-up for new users).
+// customer: get notifs, mark read
+// admin: send/delete announcements
 public class NotificationService(NotificationRepository notifications, CouponRepository coupons, UserRepository users)
 {
     public static object ToDto(Notification n, bool? isRead = null) => new
@@ -57,7 +57,7 @@ public class NotificationService(NotificationRepository notifications, CouponRep
         if (couponCode is not null && await coupons.Find(couponCode) is null)
             return ServiceResults.BadRequest(new { message = "That coupon does not exist." });
 
-        // "new_users" is saved and given to each new sign-up; anything else goes to everyone now.
+        // new_users is saved for future signups, others go to everyone
         var audience = req.Audience?.Trim() == BroadcastAudiences.NewUsers ? BroadcastAudiences.NewUsers : BroadcastAudiences.All;
         var notification = new Notification
         {
@@ -71,7 +71,7 @@ public class NotificationService(NotificationRepository notifications, CouponRep
         return ServiceResults.StatusCode(201, ToDto(notification));
     }
 
-    // Soft delete: IsDeleted = true keeps the row; customers and the admin list no longer see it.
+    // soft delete
     public async Task<ServiceResult> DeleteBroadcast(int id)
     {
         var notification = await notifications.Find(id);
@@ -81,7 +81,7 @@ public class NotificationService(NotificationRepository notifications, CouponRep
         return ServiceResults.Ok(new { message = "Notification deleted." });
     }
 
-    // "See previous notifications": older than the 7-day bell but inside the 30 days kept, 10 per page.
+    // older than 7 days (up to 30), 10 per page
     public async Task<ServiceResult> Older(int userId, int page, CurrentUser me)
     {
         if (!me.CanAccess(userId)) return CurrentUser.Denied();
@@ -102,14 +102,13 @@ public class NotificationService(NotificationRepository notifications, CouponRep
         });
     }
 
-    // Run by NotificationCleanupService: notifications older than 30 days are soft-deleted.
-    // The admin's saved new-user messages stay until the admin deletes them.
+    // used by cleanup job, new user msgs are kept
     public Task<int> ExpireOld()
     {
         return notifications.SoftDeleteCreatedBefore(DateTime.UtcNow - NotificationRules.KeepFor, BroadcastAudiences.NewUsers);
     }
 
-    // Called right after sign-up: each saved new-user message becomes the customer's own notification.
+    // copy saved new user msgs to the new account
     public async Task<int> WelcomeNewUser(int userId)
     {
         var templates = await notifications.Templates(BroadcastAudiences.NewUsers);
@@ -126,12 +125,12 @@ public class NotificationService(NotificationRepository notifications, CouponRep
         return copies.Count;
     }
 
-    // A customer only sees announcements sent after their account was created.
+    // only announcements after the account was made
     async Task<DateTime?> JoinedAt(int userId) => (await users.Find(userId))?.CreatedAt;
 
     static DateTime Later(DateTime a, DateTime b) => a > b ? a : b;
 
-    // Admin "Messages for new users" box: the saved messages each new sign-up receives.
+    // saved new user msgs (admin)
     public async Task<ServiceResult> GetNewUserMessages()
     {
         var list = await notifications.Templates(BroadcastAudiences.NewUsers);

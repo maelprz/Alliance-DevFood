@@ -1,7 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 
-// Logged-out tokens (revoked_tokens) and password reset links (password_reset_tokens).
-// Rows are never deleted: used reset links are marked UsedAt, logged-out tokens stay listed.
+// revoked tokens + reset links. nothing is deleted, used links just get UsedAt
 public class AuthTokenRepository(AppDbContext db)
 {
     public async Task AddRevoked(RevokedToken token)

@@ -8,7 +8,6 @@ import FormAlert from "./FormAlert";
 
 const PAGE_SIZE = 10;
 
-// Columns with a sort key can be clicked to sort (click again to flip the order).
 const COLUMNS = [
   { label: "Name", sort: USER_SORT.NAME },
   { label: "Email", sort: USER_SORT.EMAIL },

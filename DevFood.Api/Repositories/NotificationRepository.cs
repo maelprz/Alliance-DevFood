@@ -2,7 +2,7 @@ using Microsoft.EntityFrameworkCore;
 
 public record UserNotification(Notification Notification, bool IsRead);
 
-// A user sees their own notifications plus the ones sent to everyone (UserId = null).
+// own notifs + broadcasts (UserId null)
 public class NotificationRepository(AppDbContext db)
 {
     public Task<List<UserNotification>> ForUser(int userId, DateTime since, string broadcastAudience)
@@ -41,7 +41,7 @@ public class NotificationRepository(AppDbContext db)
         await db.SaveChangesAsync();
     }
 
-    // Announcements only (UserId = null), newest first. Soft-deleted rows are hidden by the query filter.
+    // broadcasts only, newest first
     public Task<List<Notification>> Broadcasts(string audience)
     {
         return db.Notifications
@@ -66,7 +66,7 @@ public class NotificationRepository(AppDbContext db)
         await db.SaveChangesAsync();
     }
 
-    // Notifications created between `oldest` and `before`, newest first, one page at a time.
+    // between oldest and before, newest first, paged
     public async Task<NotificationPage> Older(int userId, string broadcastAudience, DateTime oldest, DateTime before, int page, int pageSize)
     {
         var query = db.Notifications
@@ -85,8 +85,7 @@ public class NotificationRepository(AppDbContext db)
         return new NotificationPage(items, total);
     }
 
-    // Soft delete in one UPDATE: rows stay, IsDeleted = true hides them everywhere.
-    // Rows with `keepAudience` (the saved new-user messages) are left alone.
+    // bulk soft delete, skips keepAudience (new user msgs)
     public Task<int> SoftDeleteCreatedBefore(DateTime cutoff, string keepAudience)
     {
         return db.Notifications
@@ -94,7 +93,7 @@ public class NotificationRepository(AppDbContext db)
             .ExecuteUpdateAsync(s => s.SetProperty(n => n.IsDeleted, true));
     }
 
-    // The admin's saved messages for one audience (UserId = null), oldest first.
+    // saved msgs for an audience, oldest first
     public Task<List<Notification>> Templates(string audience)
     {
         return db.Notifications.AsNoTracking()

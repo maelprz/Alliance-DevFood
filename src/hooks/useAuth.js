@@ -26,7 +26,7 @@ const INITIAL_REGISTER_FORM = {
 
 
 export function useAuth({ onLoginSuccess }) {
-  // The Login / Sign Up tab follows the address: /login or /signup.
+  // tab based on url (/login or /signup)
   const { view, navigate } = useNav();
   const isSignUp = view === "signup";
   const setIsSignUp = useCallback((signUp) => navigate(signUp ? "signup" : "login"), [navigate]);

@@ -17,7 +17,7 @@ function tokenFromUrl() {
 }
 
 
-// Removes ?reset_token=… so a refresh or a shared screenshot doesn't expose it.
+// remove token from url
 function clearTokenFromUrl() {
   window.history.replaceState(null, "", window.location.pathname);
 }

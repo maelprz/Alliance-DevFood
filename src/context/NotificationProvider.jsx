@@ -13,8 +13,7 @@ import NotificationToasts from "../components/NotificationToasts";
 
 const TOAST_TYPES = new Set([NOTIFICATION_TYPES.ORDER_CONFIRMED, NOTIFICATION_TYPES.ORDER_STATUS]);
 
-// Older-than-7-days pages loaded with "See previous notifications". Kept per user id,
-// so a different account never sees the previous account's list.
+// older notifs, kept per user so accounts don't mix
 const NO_OLDER = { userId: null, items: [], page: 0, totalPages: null, loading: false };
 
 
@@ -105,7 +104,7 @@ export function NotificationProvider({ children }) {
       .catch(() => setOlderState((prev) => ({ ...prev, loading: false })));
   }, [userId, older]);
 
-  // An item right at the 7-day line can briefly be in both lists; show it once.
+  // skip duplicates at the 7 day edge
   const recentIds = new Set(notifications.map((n) => n.id));
   const olderNotifications = older.items.filter((n) => !recentIds.has(n.id));
   const hasMoreOlder = older.totalPages === null || older.page < older.totalPages;

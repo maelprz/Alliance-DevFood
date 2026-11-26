@@ -1,7 +1,6 @@
 using System.Text.Json.Serialization;
 
-// Only the fields the server trusts are bound; ids, prices and totals sent by the
-// client (order_id, order_item_id, subtotal, total_amount...) are ignored and recomputed.
+// prices/totals from client are ignored, server computes them
 public record OrderHeader(
     [property: JsonPropertyName("user_id")] int UserId,
     [property: JsonPropertyName("coupon_code")] string? CouponCode,

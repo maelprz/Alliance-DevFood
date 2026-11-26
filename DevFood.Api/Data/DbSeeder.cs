@@ -13,8 +13,7 @@ record MenuSeed(
 
 public static class DbSeeder
 {
-    // Fills an empty menu from Data/menuSeed.json (same ids as the frontend's menuData.json)
-    // and creates the admin account when Admin:Email / Admin:Password are configured.
+    // seed menu from menuSeed.json + admin account (if Admin:Email/Password are set)
     public static async Task SeedAsync(WebApplication app)
     {
         var log = app.Logger;
@@ -44,7 +43,7 @@ public static class DbSeeder
                     Description = s.Description ?? ""
                 }));
                 await db.SaveChangesAsync();
-                // Explicit ids don't advance the identity sequence; move it past them.
+                // fix id sequence since we inserted with explicit ids
                 await db.Database.ExecuteSqlRawAsync(
                     "SELECT setval(pg_get_serial_sequence('menu_items', 'id'), (SELECT MAX(id) FROM menu_items))");
                 log.LogInformation("Seeded {Count} menu items.", seed.Count);

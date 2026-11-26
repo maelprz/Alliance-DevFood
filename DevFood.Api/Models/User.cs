@@ -10,10 +10,10 @@ public class User
     public string? AddressCity { get; set; }
     public string? AddressZip { get; set; }
     public DateTime? NameChangedAt { get; set; }
-    // Soft delete: deactivated users can't log in and their tokens stop working.
+    // false = deactivated, can't login
     public bool IsActive { get; set; } = true;
     public DateTime? DeactivatedAt { get; set; }
-    // Tokens issued before this moment are rejected (set on password reset).
+    // tokens before this are invalid (set on pw reset)
     public DateTime? SessionsValidAfter { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }

@@ -2,7 +2,7 @@ public class Notification
 {
     public int Id { get; set; }
     public bool IsDeleted { get; set; }
-    // null = broadcast to every customer
+    // null = for everyone
     public int? UserId { get; set; }
     public User? User { get; set; }
     public string Type { get; set; } = "broadcast";
@@ -13,7 +13,7 @@ public class Notification
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }
 
-// One row per (notification, user) that has been read; works for broadcasts too.
+// read status per user (works for broadcasts too)
 public class NotificationRead
 {
     public int NotificationId { get; set; }

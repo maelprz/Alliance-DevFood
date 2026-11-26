@@ -1,11 +1,11 @@
-// A JWT that was logged out before it expired. Rows can be purged once ExpiresAt passes.
+// logged out tokens, can be removed after ExpiresAt
 public class RevokedToken
 {
     public string Jti { get; set; } = "";
     public DateTime ExpiresAt { get; set; }
 }
 
-// Single-use password reset link. Only the SHA-256 hash of the emailed token is stored.
+// reset link, one use only. only the hash is saved
 public class PasswordResetToken
 {
     public int Id { get; set; }

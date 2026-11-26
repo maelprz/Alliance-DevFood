@@ -1,14 +1,14 @@
 import { API_ROUTES, SESSION_EXPIRED_EVENT, ROLES, NOTIFICATION_AUDIENCES } from "../constants/auth";
 import { authHeaders, clearSession } from "./authService";
 
-// Customer notification calls used by NotificationProvider.
+// customer notification api
 
 function expireSession() {
   clearSession();
   window.dispatchEvent(new Event(SESSION_EXPIRED_EVENT));
 }
 
-// The bell: notifications from the last 7 days.
+// bell (last 7 days)
 export async function getNotifications(userId) {
   const res = await fetch(`${API_ROUTES.NOTIFICATIONS}?user_id=${encodeURIComponent(userId)}`, {
     headers: authHeaders(),
@@ -21,8 +21,7 @@ export async function getNotifications(userId) {
   return Array.isArray(list) ? list : [];
 }
 
-// "See previous notifications": older than 7 days, one page at a time.
-// Returns { items, total, page, totalPages }, or null when the session expired.
+// older notifs, paged. null if session expired
 export async function getOlderNotifications(userId, page) {
   const params = new URLSearchParams({ user_id: userId, page });
   const res = await fetch(`${API_ROUTES.NOTIFICATIONS}/older?${params}`, { headers: authHeaders() });
@@ -34,7 +33,7 @@ export async function getOlderNotifications(userId, page) {
   return res.json();
 }
 
-// The bell already shows the item as read, so a failed request is not shown to the user.
+// ignore errors, ui already shows it as read
 function sendRead(url, userId) {
   return fetch(url, {
     method: "PATCH",
@@ -51,8 +50,7 @@ export function markAllNotificationsRead(userId) {
   return sendRead(`${API_ROUTES.NOTIFICATIONS}/read-all`, userId);
 }
 
-// Admin "Messages for new users" box. Each saved message is copied into a
-// customer's bell right after they sign up.
+// admin new user msgs
 
 export async function getNewUserMessages() {
   const res = await fetch(`${API_ROUTES.NOTIFICATIONS}/new-users`, { headers: authHeaders(ROLES.ADMIN) });
@@ -84,7 +82,7 @@ export async function removeNewUserMessage(id) {
   return { ok: res.ok, data };
 }
 
-// Coupon statuses (from the coupon module) that can still be attached to a message.
+// coupon statuses that can be attached
 const PICKABLE_COUPON_STATUSES = new Set(["Active", "Scheduled"]);
 
 export async function getCouponChoices() {

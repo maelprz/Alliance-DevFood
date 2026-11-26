@@ -13,8 +13,6 @@ export default function Login() {
   const { navigate } = useNav();
   const { setUser, setAdminUser } = useApp();
 
-  // No scroll lock here: on short screens the Sign Up form is taller than the
-  // window, so the page has to scroll to reach the Create Account button.
 
 
   const {
@@ -113,8 +111,6 @@ export default function Login() {
         }}
       >
       <div style={{ width: "100%", maxWidth: 440 }}>
-        {/* For guests who change their mind: go back to browsing without logging in.
-            Kept at the top so it stays visible on short screens (this page doesn't scroll). */}
         <div style={{ marginBottom: 16 }}>
           <button
             type="button"
