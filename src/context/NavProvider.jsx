@@ -8,11 +8,14 @@ import { NavContext } from "./NavContext";
 // View is persisted in sessionStorage so a page refresh keeps the user where
 // they were. Cleared automatically when the tab closes (sessionStorage scope).
 //
-// Menu categories, the Cart page and the account pages have their own addresses.
+// Menu categories, the Cart, Checkout and Track Order pages and the account
+// pages have their own addresses.
 // Other views stay on "/" and are preserved in history state.
 const VIEW_KEY = "devfood:view";
 const VIEW_PATHS = new Map([
   ["cart", "/cart"],
+  ["checkout", "/checkout"],
+  ["track", "/track-order"],
   ["admin", "/admin"],
   ["admin-orders", "/admin/orders"],
   ["admin-menu", "/admin/menu"],
